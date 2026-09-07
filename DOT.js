@@ -33,27 +33,6 @@ const supabase =
 
 
 
-const ACTIVITY = [
-
-  {
-    text: "You published <b>Ulot River Torpedo Extreme Ride</b>.",
-    time: "Aug 15, 2026",
-    ico: "circle-plus",
-    color: "#079fa3",
-    bg: "#d8f6f7"
-  },
-
-  {
-    text: "A traveler left a 5-star rating on <b>San Juanico Bridge</b>.",
-    time: "Aug 12, 2026",
-    ico: "star",
-    color: "#a67200",
-    bg: "#fff4d9"
-  }
-
-];
-
-
 /* =========================================================
    STATE
 ========================================================= */
@@ -1489,17 +1468,43 @@ function buildRealtimeAdminNotifications() {
       1000
     );
 
-
   /* =====================================================
-     NEW / UPLOADED DESTINATIONS
+     NEW / PUBLISHED DESTINATIONS
   ===================================================== */
 
   destinations.forEach(
     destination => {
 
+      const isPublished =
+        destination.status ===
+        "Published";
+
+
+      /*
+         Published destinations use publishedAt.
+  
+         Older database records may not have
+         publishedAt yet, so createdAt is used
+         as a safe fallback.
+      */
+
       const timestamp =
         adminTimestampToMillis(
-          destination.createdAt
+
+          isPublished
+
+            ?
+
+            (
+              destination.publishedAt
+              ||
+              destination.createdAt
+            )
+
+            :
+
+            destination.createdAt
+
         );
 
 
@@ -1523,23 +1528,18 @@ function buildRealtimeAdminNotifications() {
         );
 
 
-      const status =
-        destination.status ===
-          "Published"
-
-          ?
-
-          "published"
-
-          :
-
-          "uploaded";
-
-
       notifications.push({
 
         id:
-          `destination_${destination.id}`,
+          isPublished
+
+            ?
+
+            `destination_published_${destination.id}_${timestamp}`
+
+            :
+
+            `destination_uploaded_${destination.id}`,
 
         type:
           "destination",
@@ -1548,7 +1548,15 @@ function buildRealtimeAdminNotifications() {
           destination.id,
 
         text:
-          `You ${status} <b>${safeName}</b>.`,
+          isPublished
+
+            ?
+
+            `You published <b>${safeName}</b>.`
+
+            :
+
+            `You uploaded <b>${safeName}</b> as a draft.`,
 
         timestamp:
           timestamp,
@@ -1785,6 +1793,8 @@ function refreshRealtimeAdminNotifications() {
 
 
   renderNotifPanel();
+
+  renderActivity();
 
 }
 
@@ -2597,48 +2607,330 @@ function renderRecentDest() {
 
 }
 
-
 /* =========================================================
-   ACTIVITY
+   REALTIME RECENT ACTIVITY
 ========================================================= */
 
 function renderActivity() {
 
-  document.getElementById(
-    "activityList"
-  ).innerHTML =
+  const activityList =
+    document.getElementById(
+      "activityList"
+    );
 
-    ACTIVITY
+
+  if (
+    !activityList
+  ) {
+
+    return;
+
+  }
+
+
+  /*
+     adminRealtimeNotifications is already:
+     - generated from Firestore
+     - sorted newest first
+
+     Show only the latest 6 on Dashboard.
+  */
+
+  const recentActivity =
+    adminRealtimeNotifications
+      .slice(
+        0,
+        6
+      );
+
+
+  /* =====================================================
+     EMPTY
+  ===================================================== */
+
+  if (
+    recentActivity.length ===
+    0
+  ) {
+
+    activityList.innerHTML = `
+
+      <div class="activity-empty">
+
+        <i data-lucide="clock-3"></i>
+
+        <strong>
+          No recent activity
+        </strong>
+
+        <span>
+          New activity will appear here automatically.
+        </span>
+
+      </div>
+
+    `;
+
+
+    refreshIcons();
+
+    return;
+
+  }
+
+  /* =========================================================
+   CLICK RECENT ACTIVITY
+========================================================= */
+
+  document
+    .getElementById(
+      "activityList"
+    )
+    ?.addEventListener(
+      "click",
+      event => {
+
+        const item =
+          event.target.closest(
+            ".activity-item"
+          );
+
+
+        if (
+          !item
+        ) {
+
+          return;
+
+        }
+
+
+        const targetView =
+          item.dataset
+            .activityTarget;
+
+
+        const destinationId =
+          item.dataset
+            .activityDestination;
+
+
+        /* =================================================
+           COMMENT / RATING
+        ================================================= */
+
+        if (
+          targetView ===
+          "reviews"
+        ) {
+
+          switchView(
+            "reviews"
+          );
+
+
+          return;
+
+        }
+
+
+        /* =================================================
+           UPLOAD / PUBLISH / SAVES
+        ================================================= */
+
+        switchView(
+          "destinations"
+        );
+
+
+        requestAnimationFrame(
+          () => {
+
+            const destinationCard =
+              Array
+                .from(
+                  document.querySelectorAll(
+                    ".admin-dest-card"
+                  )
+                )
+                .find(
+                  card =>
+                    card.dataset.id ===
+                    destinationId
+                );
+
+
+            destinationCard
+              ?.scrollIntoView({
+                behavior:
+                  "smooth",
+
+                block:
+                  "center"
+              });
+
+          }
+        );
+
+      }
+    );
+
+
+  /* =====================================================
+     STYLE PER ACTIVITY TYPE
+  ===================================================== */
+
+  function getActivityAppearance(
+    type
+  ) {
+
+    switch (
+    type
+    ) {
+
+      case "destination":
+
+        return {
+          icon:
+            "circle-plus",
+
+          color:
+            "#079fa3",
+
+          background:
+            "#d8f6f7"
+        };
+
+
+      case "comment":
+
+        return {
+          icon:
+            "message-circle",
+
+          color:
+            "#3266b0",
+
+          background:
+            "#e9f0fb"
+        };
+
+
+      case "rating":
+
+        return {
+          icon:
+            "star",
+
+          color:
+            "#a67200",
+
+          background:
+            "#fff4d9"
+        };
+
+
+      case "save":
+
+        return {
+          icon:
+            "heart",
+
+          color:
+            "#d33838",
+
+          background:
+            "#fde8e8"
+        };
+
+
+      default:
+
+        return {
+          icon:
+            "activity",
+
+          color:
+            "#079fa3",
+
+          background:
+            "#d8f6f7"
+        };
+
+    }
+
+  }
+
+
+  /* =====================================================
+     BUILD ACTIVITY LIST
+  ===================================================== */
+
+  activityList.innerHTML =
+
+    recentActivity
       .map(
-        activity => `
+        activity => {
 
-                    <div class="activity-item">
-
-                        <div
-                            class="activity-ico"
-                            style="background:${activity.bg};color:${activity.color};"
-                        >
-
-                            <i data-lucide="${activity.ico}"></i>
-
-                        </div>
+          const appearance =
+            getActivityAppearance(
+              activity.type
+            );
 
 
-                        <div class="activity-text">
+          return `
 
-                            <p>
-                                ${activity.text}
-                            </p>
+            <button
+              type="button"
+              class="activity-item"
+              data-activity-target="${escapeAdminHTML(activity.targetView || "")}"
+              data-activity-destination="${escapeAdminHTML(activity.destinationId || "")}"
+            >
 
-                            <div class="time">
-                                ${activity.time}
-                            </div>
+              <div
+                class="activity-ico"
+                style="
+                  background:${appearance.background};
+                  color:${appearance.color};
+                "
+              >
 
-                        </div>
+                <i
+                  data-lucide="${appearance.icon}"
+                ></i>
 
-                    </div>
+              </div>
 
-                `
+
+              <div class="activity-text">
+
+                <p>
+                  ${activity.text}
+                </p>
+
+
+                <div class="time">
+
+                  ${formatAdminNotificationTime(
+            activity.timestamp
+          )
+            }
+
+                </div>
+
+              </div>
+
+
+              <i
+                class="activity-chevron"
+                data-lucide="chevron-right"
+              ></i>
+
+            </button>
+
+          `;
+
+        }
       )
       .join(
         ""
@@ -2648,7 +2940,6 @@ function renderActivity() {
   refreshIcons();
 
 }
-
 
 /* =========================================================
    DESTINATION LIST
@@ -3090,6 +3381,9 @@ function bindDestActionEvents() {
                     todayLabel(),
 
                   updatedAt:
+                    serverTimestamp(),
+
+                  publishedAt:
                     serverTimestamp()
                 }
 
@@ -5604,6 +5898,18 @@ async function saveDestination(
     ) {
 
       destinationData.createdAt =
+        serverTimestamp();
+
+    }
+
+    if (
+      wantsPublish
+      &&
+      existing?.status !==
+      "Published"
+    ) {
+
+      destinationData.publishedAt =
         serverTimestamp();
 
     }
