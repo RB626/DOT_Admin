@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TravelBuddy Samar — DOT Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <script src="https://unpkg.com/lucide@0.468.0"></script>
+  <link rel="stylesheet" href="DOTStyle.css">
+</head>
+
+<body>
+
+  <div class="admin-shell">
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <aside class="admin-sidebar" id="adminSidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-icon"><i data-lucide="compass"></i></div>
+        <div>
+          <h1>TravelBuddy Samar</h1>
+          <span>DOT Admin Panel</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="sidebar-section-label">Overview</div>
+        <button class="sidebar-link active" data-view="dashboard">
+          <i data-lucide="layout-dashboard"></i><span>Dashboard</span>
+        </button>
+
+        <div class="sidebar-section-label">Destinations</div>
+        <button class="sidebar-link" data-view="destinations">
+          <i data-lucide="map-pinned"></i><span>Manage Destinations</span>
+        </button>
+        <button class="sidebar-link" data-view="form" id="sidebarAddNew">
+          <i data-lucide="circle-plus"></i><span>Add New Destination</span>
+        </button>
+
+        <div class="sidebar-section-label">Engagement</div>
+        <button class="sidebar-link" data-view="reviews">
+          <i data-lucide="message-square-text"></i><span>Comments &amp; Ratings</span>
+          <span class="sidebar-badge">4</span>
+        </button>
+
+        <div class="sidebar-section-label">Account</div>
+        <button class="sidebar-link" data-view="account">
+          <i data-lucide="settings"></i><span>Account Settings</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-account">
+          <div class="sidebar-avatar">MR</div>
+          <div class="sidebar-account-info">
+            <strong>Maria Reyes</strong>
+            <span>maria.reyes@tourism.gov.ph</span>
+          </div>
+        </div>
+        <button class="sidebar-logout"><i data-lucide="log-out"></i>Log Out</button>
+      </div>
+    </aside>
+
+    <div class="admin-main">
+      <header class="admin-topbar">
+        <button class="hamburger-btn" id="hamburgerBtn" aria-label="Open menu"><i data-lucide="menu"></i></button>
+        <div class="topbar-title">
+          <h2 id="topbarTitle">Dashboard</h2>
+          <p id="topbarSubtitle">Here's what's happening with your destinations today.</p>
+        </div>
+        <div class="topbar-search">
+          <i data-lucide="search"></i>
+          <input id="topbarSearch" type="search" placeholder="Search your destinations...">
+        </div>
+        <div class="topbar-actions">
+          <button class="topbar-notif-btn" id="notifBtn" aria-label="Notifications">
+            <i data-lucide="bell"></i>
+            <span class="topbar-notif-count">4</span>
+          </button>
+          <button class="topbar-add-btn" id="topbarAddBtn"><i data-lucide="circle-plus"></i><span>Add
+              Destination</span></button>
+        </div>
+      </header>
+
+      <div class="notif-panel" id="notifPanel">
+        <div class="notif-panel-head">Notifications <button id="markAllReadBtn">Mark all read</button></div>
+        <div id="notifPanelList"></div>
+      </div>
+
+      <div class="admin-content">
+
+        <!-- ============ DASHBOARD ============ -->
+        <section class="admin-view active" id="view-dashboard">
+          <div class="stat-grid" id="statGrid"></div>
+
+          <div class="quick-action-grid">
+            <button class="quick-action-card" data-view="form" data-goto="form">
+              <div class="quick-action-ico"><i data-lucide="circle-plus"></i></div>
+              <div>
+                <h4>Add New Destination</h4>
+                <p>Create a new listing and publish it live.</p>
+              </div>
+            </button>
+            <button class="quick-action-card" data-view="destinations">
+              <div class="quick-action-ico" style="background:#fff4d9; color:#a67200;"><i data-lucide="file-edit"></i>
+              </div>
+              <div>
+                <h4>Manage Destinations</h4>
+                <p>Edit, unpublish, or update existing places.</p>
+              </div>
+            </button>
+            <button class="quick-action-card" data-view="reviews">
+              <div class="quick-action-ico" style="background:#e9f0fb; color:#3266b0;"><i
+                  data-lucide="message-square-text"></i></div>
+              <div>
+                <h4>Comments &amp; Ratings</h4>
+                <p>See what travelers are saying.</p>
+              </div>
+            </button>
+          </div>
+
+          <div class="dash-grid">
+            <div>
+              <div class="section-head">
+                <h3>Recent destinations</h3>
+                <button class="section-head-link" data-view="destinations">See all <i
+                    data-lucide="chevron-right"></i></button>
+              </div>
+              <div id="recentDestList"></div>
+            </div>
+
+            <div>
+              <div class="section-head">
+                <h3>Recent activity</h3>
+              </div>
+              <div class="activity-card" id="activityList"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ DESTINATIONS LIST ============ -->
+        <section class="admin-view" id="view-destinations">
+          <div class="dest-toolbar">
+            <div class="toolbar-search">
+              <i data-lucide="search"></i>
+              <input id="destSearchInput" type="search" placeholder="Search by name or municipality...">
+            </div>
+            <select class="toolbar-select" id="categoryFilterSelect">
+              <option value="All">All categories</option>
+              <option value="Beaches">Beaches</option>
+              <option value="Waterfalls">Waterfalls</option>
+              <option value="Caves">Caves</option>
+              <option value="Heritage">Heritage</option>
+              <option value="Nature">Nature</option>
+              <option value="Food">Food</option>
+              <option value="Accommodation">Accommodation</option>
+            </select>
+          </div>
+          <div class="filter-chip-row" id="statusFilterRow">
+            <button class="filter-chip active" data-status="All">All</button>
+            <button class="filter-chip" data-status="Published">Published</button>
+            <button class="filter-chip" data-status="Draft">Draft</button>
+            <button class="filter-chip" data-status="Archived">Archived</button>
+          </div>
+          <div class="result-count" id="destResultCount"></div>
+          <div id="destListContainer"></div>
+        </section>
+
+        <!-- ============ ADD/EDIT FORM ============ -->
+        <section class="admin-view" id="view-form">
+          <div class="form-header">
+            <button class="form-back-btn" data-view="destinations"><i data-lucide="arrow-left"></i></button>
+            <div class="form-header-copy">
+              <h2 id="formTitle">Add New Destination</h2>
+              <p id="formSubtitle">Fill in the details below — you can publish immediately or save as a draft.</p>
+            </div>
+          </div>
+
+          <div class="form-layout">
+            <div>
+              <div class="form-card">
+                <div class="form-card-head"><span class="num">1</span>
+                  <div>
+                    <h4>Basic Information</h4>
+                  </div>
+                </div>
+                <div class="form-card-body">
+                  <div class="field"><label>Place name</label><input id="fName"
+                      placeholder="e.g. Sohoton Caves &amp; Natural Bridge"></div>
+                  <div class="field"><label>Category</label>
+                    <select id="fCategory">
+                      <option>Beaches</option>
+                      <option>Waterfalls</option>
+                      <option>Caves</option>
+                      <option>Heritage</option>
+                      <option>Nature</option>
+                      <option>Food</option>
+                      <option>Accommodation</option>
+                    </select>
+                  </div>
+                  <div class="field"><label>Short description <span class="hint">— shown on destination
+                        cards</span></label><input id="fShortDesc" placeholder="One-line summary"></div>
+                  <div class="field"><label>Full description</label><textarea id="fFullDesc"
+                      placeholder="Describe what makes this destination worth visiting..."></textarea></div>
+                </div>
+              </div>
+
+              <div class="form-card">
+                <div class="form-card-head"><span class="num">2</span>
+                  <div>
+                    <h4>Location</h4>
+                  </div>
+                </div>
+                <div class="form-card-body">
+                  <div class="field-row">
+                    <div class="field"><label>Municipality</label><input id="fMunicipality" placeholder="e.g. Basey">
+                    </div>
+                    <div class="field"><label>Barangay</label><input id="fBarangay" placeholder="e.g. Guintigui-an">
+                    </div>
+                  </div>
+                  <div class="field"><label>Full address</label><input id="fAddress" placeholder="Complete address">
+                  </div>
+                  <div class="field-row">
+                    <div class="field"><label>Latitude</label><input id="fLat" placeholder="11.2716"></div>
+                    <div class="field"><label>Longitude</label><input id="fLng" placeholder="125.0821"></div>
+                  </div>
+                  <div class="field">
+
+                    <label>Pin location on map</label>
+
+                    <div class="admin-map-picker-wrap">
+
+                      <div class="map-picker" id="mapPicker">
+                      </div>
+
+                      <div class="map-picker-hint">
+                        <i data-lucide="map-pin"></i>
+                        <span>Click the map or drag the pin to set the exact location</span>
+                      </div>
+
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-card">
+                <div class="form-card-head"><span class="num">3</span>
+                  <div>
+                    <h4>Main Photo</h4>
+                  </div>
+                </div>
+                <div class="form-card-body">
+                  <div id="mainPhotoArea">
+                    <div class="upload-box" id="mainPhotoUpload">
+                      <div class="ico"><i data-lucide="image-plus"></i></div>
+                      <strong>Upload main photo</strong>
+                      <span>JPG or PNG, up to 10MB — this appears on cards and the hero image</span>
+                    </div>
+                  </div>
+                  <input type="file" id="mainPhotoInput" accept="image/*" hidden>
+                </div>
+              </div>
+
+              <div class="form-card">
+                <div class="form-card-head"><span class="num">4</span>
+                  <div>
+                    <h4>Supporting Photos</h4>
+                    <p>Minimum 2, maximum 6 photos</p>
+                  </div>
+                </div>
+                <div class="form-card-body">
+                  <div class="thumb-row" id="supportingPhotosRow">
+                    <button class="thumb-add" id="addSupportingPhotoBtn"><i data-lucide="plus"></i></button>
+                  </div>
+                  <input type="file" id="supportingPhotoInput" accept="image/*" hidden>
+                </div>
+              </div>
+
+              <div class="form-card">
+                <div class="form-card-head"><span class="num">5</span>
+                  <div>
+                    <h4>Representative / Contact Details</h4>
+                  </div>
+                </div>
+                <div class="form-card-body">
+                  <div class="field"><label>Representative name</label><input id="fRepName" placeholder="Full name">
+                  </div>
+                  <div class="field-row">
+                    <div class="field"><label>Email</label><input id="fRepEmail" type="email"
+                        placeholder="email@example.com"></div>
+                    <div class="field"><label>Phone</label><input id="fRepPhone" placeholder="09XX XXX XXXX"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-card">
+                <div class="form-card-head"><span class="num">6</span>
+                  <div>
+                    <h4>Supporting Documents</h4>
+                    <p>Optional — permits, clearances, references</p>
+                  </div>
+                </div>
+                <div class="form-card-body">
+                  <div class="upload-box" id="docUploadBox">
+                    <div class="ico"><i data-lucide="file-plus-2"></i></div>
+                    <strong>Upload PDF or image</strong>
+                    <span>Barangay clearance, land use certificate, etc.</span>
+                  </div>
+                  <input type="file" id="docInput" accept=".pdf,image/*" hidden>
+                  <div id="docListArea"></div>
+                </div>
+              </div>
+
+              <div class="form-card">
+                <div class="form-card-head"><span class="num">7</span>
+                  <div>
+                    <h4>Declaration</h4>
+                  </div>
+                </div>
+                <div class="form-card-body">
+                  <div class="checkbox-row"><input type="checkbox" id="d1">
+                    <p>I confirm the information provided is accurate to the best of my knowledge.</p>
+                  </div>
+                  <div class="checkbox-row"><input type="checkbox" id="d2">
+                    <p>I confirm the Department of Tourism has the authority to publish this destination.</p>
+                  </div>
+                  <div class="checkbox-row"><input type="checkbox" id="d3">
+                    <p>I confirm any attached documents and photos are authentic and unaltered.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="form-card publish-card">
+                <div class="form-card-head">
+                  <h4>Publish Settings</h4>
+                </div>
+                <div class="form-card-body">
+                  <div class="publish-status-row">
+                    <span class="lbl" id="publishToggleLabel">Publish immediately</span>
+                    <button class="toggle-switch on" id="publishToggle"></button>
+                  </div>
+                  <div class="publish-actions">
+                    <button class="btn btn-primary btn-block" id="saveDestinationBtn"><i data-lucide="check"></i><span
+                        id="saveBtnLabel">Publish Destination</span></button>
+                    <button class="btn btn-ghost btn-block" id="saveDraftBtn"><i data-lucide="save"></i>Save as
+                      Draft</button>
+                    <button class="btn btn-danger-ghost btn-block" id="deleteDraftBtn" style="display:none;"><i
+                        data-lucide="trash-2"></i>Delete Destination</button>
+                  </div>
+                  <div class="checklist-mini" id="formChecklist"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ REVIEWS ============ -->
+        <section class="admin-view" id="view-reviews">
+          <div class="section-head">
+            <h3>Comments &amp; ratings</h3>
+          </div>
+          <div id="reviewsList"></div>
+        </section>
+
+        <!-- ============ ACCOUNT ============ -->
+        <section class="admin-view" id="view-account">
+          <div class="form-card" style="max-width:520px;">
+            <div class="form-card-head">
+              <h4>Account Settings</h4>
+            </div>
+            <div class="form-card-body">
+              <div class="field"><label>Full name</label><input value="Maria Reyes"></div>
+              <div class="field"><label>Email address</label><input value="maria.reyes@tourism.gov.ph" type="email">
+              </div>
+              <div class="field"><label>Office / Region</label><input value="DOT Region VIII — Eastern Visayas"></div>
+              <div class="field"><label>Role</label><input value="DOT Admin" disabled></div>
+              <button class="btn btn-primary" id="saveAccountBtn"><i data-lucide="check"></i>Save Changes</button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DELETE CONFIRM MODAL ============ -->
+  <div class="modal-backdrop" id="deleteModalBackdrop">
+    <div class="modal-card">
+      <div class="modal-ico" style="background:#fde8e8; color:#d33838;"><i data-lucide="trash-2"></i></div>
+      <h3>Delete this destination?</h3>
+      <p id="deleteModalText">This will remove it from TravelBuddy Samar for all travelers. This can't be undone.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" style="flex:1;" id="cancelDeleteBtn">Cancel</button>
+        <button class="btn" style="flex:1; background:#d33838; color:#fff;" id="confirmDeleteBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ UNPUBLISH CONFIRM MODAL ============ -->
+  <div class="modal-backdrop" id="unpublishModalBackdrop">
+    <div class="modal-card">
+      <div class="modal-ico" style="background:#fff4d9; color:#a67200;"><i data-lucide="eye-off"></i></div>
+      <h3 id="unpublishModalTitle">Unpublish this destination?</h3>
+      <p id="unpublishModalText">Travelers will no longer see this destination on TravelBuddy Samar. You can republish
+        it anytime.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" style="flex:1;" id="cancelUnpublishBtn">Cancel</button>
+        <button class="btn btn-primary" style="flex:1;" id="confirmUnpublishBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><i data-lucide="check-circle"></i><span id="toastText">Saved</span></div>
+
+  <!-- =========================================================
+     GOOGLE MAPS
+========================================================= -->
+
+  <script>
+
+    window.adminGoogleMapsReady =
+      new Promise(
+        resolve => {
+
+          window.initTravelBuddyAdminGoogleMaps =
+            resolve;
+
+        }
+      );
+
+  </script>
+
+
+  <script async
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBGVzALyE9e1j1TxSU6ai0PrtKwmk_Xqm0&loading=async&callback=initTravelBuddyAdminGoogleMaps&v=weekly">
+    </script>
+
+
+  <!-- =========================================================
+     DOT ADMIN
+========================================================= -->
+
+  <script type="module" src="./DOT.js">
+  </script>
+</body>
+
+</html>
