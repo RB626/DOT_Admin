@@ -42,6 +42,8 @@ let editingId = null;
 let adminComments = [];
 let adminRatings = [];
 let adminSavedPlaces = [];
+let adminDestinationViews = [];
+let adminDestinationViewsUnsubscribe = null;
 let adminRealtimeNotifications = [];
 const ADMIN_NOTIFICATION_READ_KEY = "travelBuddyDotReadNotifications";
 let adminSavedPlacesUnsubscribe = null;
@@ -1300,6 +1302,114 @@ function saveAdminReadNotifications(
 
 }
 
+
+/* =========================================================
+   REALTIME DESTINATION VIEWS LISTENER
+========================================================= */
+
+function startRealtimeAdminDestinationViewsListener() {
+
+  /* =========================================
+     STOP PREVIOUS LISTENER
+  ========================================= */
+
+  if (
+    adminDestinationViewsUnsubscribe
+  ) {
+
+    adminDestinationViewsUnsubscribe();
+
+    adminDestinationViewsUnsubscribe =
+      null;
+
+  }
+
+
+  /* =========================================
+     LISTEN TO UNIQUE VIEW DOCUMENTS
+  ========================================= */
+
+  adminDestinationViewsUnsubscribe =
+    onSnapshot(
+
+      collection(
+        db,
+        "destinationViews"
+      ),
+
+      snapshot => {
+
+        adminDestinationViews =
+          snapshot.docs.map(
+            documentSnapshot => ({
+
+              id:
+                documentSnapshot.id,
+
+              ...documentSnapshot.data()
+
+            })
+          );
+
+
+        console.log(
+          "Realtime destination views:",
+          adminDestinationViews
+        );
+
+
+        /* =====================================
+           UPDATE DASHBOARD DESTINATION CARDS
+        ===================================== */
+
+        renderRecentDest();
+
+
+        /* =====================================
+           UPDATE MANAGE DESTINATION CARDS
+        ===================================== */
+
+        renderDestList();
+
+      },
+
+      error => {
+
+        console.error(
+          "ADMIN DESTINATION VIEWS ERROR:",
+          error
+        );
+
+      }
+
+    );
+
+}
+
+/* =========================================================
+   GET UNIQUE VIEW COUNT FOR ONE DESTINATION
+========================================================= */
+
+function getRealtimeDestinationViewCount(
+  destinationId
+) {
+
+  if (
+    !destinationId
+  ) {
+
+    return 0;
+
+  }
+
+
+  return adminDestinationViews.filter(
+    view =>
+      view.destinationId ===
+      destinationId
+  ).length;
+
+}
 
 /* =========================================================
    SAVE MILESTONE
@@ -2682,21 +2792,26 @@ function adminDestCard(
 
                 <div class="admin-dest-stats">
 
-                    <span>
+                    <span
+    title="Unique travelers who viewed this destination"
+>
 
-                        <i data-lucide="eye"></i>
+    <i data-lucide="eye"></i>
 
-                        ${Number(destination.views || 0).toLocaleString()}
+    ${getRealtimeDestinationViewCount(
+    destination.id
+  ).toLocaleString()
+    }
 
-                    </span>
+</span>
 
                     <span>
 
                    <i data-lucide="heart"></i>
 
                    ${getRealtimeDestinationSaveCount(
-    destination.id
-  )
+      destination.id
+    )
       .toLocaleString()
     }
 
@@ -7279,17 +7394,13 @@ function initializeDOTAdmin() {
 
   renderReviews();
 
-
-  /* =========================================
-     FIRESTORE LISTENER STARTS ONLY
-     AFTER FIREBASE AUTH SUCCEEDS
-  ========================================= */
-
   startRealtimeDestinationListener();
 
   startRealtimeReviewsListener();
 
   startRealtimeAdminSavedPlacesListener();
+
+  startRealtimeAdminDestinationViewsListener();
 
 }
 
@@ -7405,6 +7516,22 @@ onAuthStateChanged(
 
 
       adminSavedPlaces =
+        [];
+
+
+      if (
+        adminDestinationViewsUnsubscribe
+      ) {
+
+        adminDestinationViewsUnsubscribe();
+
+        adminDestinationViewsUnsubscribe =
+          null;
+
+      }
+
+
+      adminDestinationViews =
         [];
 
       dotAdminStarted =
