@@ -1816,3 +1816,495 @@ p {
     width: auto;
   }
 }
+
+/* =========================================================
+   DOT ADMIN LOGIN
+========================================================= */
+
+.dot-login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+
+  display: grid;
+  place-items: center;
+
+  padding: 24px;
+
+  background:
+    linear-gradient(135deg,
+      #eefafb,
+      #f5fbfd);
+}
+
+
+.dot-login-screen[hidden],
+.admin-shell[hidden] {
+  display: none !important;
+}
+
+
+.dot-login-card {
+  width: min(420px, 100%);
+
+  padding: 34px;
+
+  border: 1px solid var(--border);
+  border-radius: 28px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 24px 60px rgba(20, 55, 70, .14);
+}
+
+
+.dot-login-logo {
+  width: 58px;
+  height: 58px;
+
+  margin: 0 auto 20px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 18px;
+
+  background: var(--teal);
+  color: #ffffff;
+}
+
+
+.dot-login-logo svg {
+  width: 27px;
+  height: 27px;
+}
+
+
+.dot-login-card h2 {
+  margin: 0;
+
+  font-size: 24px;
+  font-weight: 900;
+}
+
+
+.dot-login-card>p {
+  margin: 8px 0 25px;
+
+  color: var(--muted);
+
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+
+.dot-login-field {
+  margin-bottom: 16px;
+}
+
+
+.dot-login-field label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  font-size: 12px;
+  font-weight: 800;
+}
+
+
+.dot-login-field input {
+  width: 100%;
+  height: 48px;
+
+  padding: 0 15px;
+
+  border: 1px solid var(--border);
+  border-radius: 14px;
+
+  outline: none;
+
+  background: #f8fcfd;
+}
+
+
+.dot-login-field input:focus {
+  border-color: var(--teal);
+
+  box-shadow:
+    0 0 0 3px rgba(7, 159, 163, .10);
+}
+
+
+.dot-login-button {
+  width: 100%;
+  height: 48px;
+
+  margin-top: 5px;
+
+  border: 0;
+  border-radius: 15px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  background: var(--teal);
+  color: #ffffff;
+
+  font-weight: 900;
+}
+
+
+.dot-login-button:hover {
+  background: var(--teal-dark);
+}
+
+
+.dot-login-button:disabled {
+  opacity: .65;
+  cursor: wait;
+}
+
+
+.dot-login-message {
+  margin-top: 14px;
+
+  padding: 11px 13px;
+
+  border-radius: 12px;
+
+  background: #fdeaea;
+  color: #b62f35;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   DOT ADMIN - COMPACT REALTIME COMMENTS & RATINGS
+========================================================= */
+
+.reviews-subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   LIST
+========================================================= */
+
+.admin-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+/* =========================================================
+   COMPACT COMMENTS & RATINGS
+========================================================= */
+
+.admin-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+
+/* =========================================================
+   COMMENT CARD
+========================================================= */
+
+.admin-review-card {
+  width: 100%;
+
+  display: flex;
+  align-items: flex-start;
+
+  gap: 11px;
+
+  padding: 13px 16px;
+
+  margin: 0;
+
+  min-height: 0 !important;
+  height: auto !important;
+
+  background: #fff;
+
+  border: 1px solid var(--border);
+  border-radius: 16px;
+
+  box-shadow:
+    0 2px 6px
+    rgba(32, 70, 90, 0.05);
+}
+
+
+/* =========================================================
+   AVATAR
+========================================================= */
+
+.admin-review-avatar {
+  width: 40px;
+  height: 40px;
+
+  flex: 0 0 40px;
+
+  display: grid;
+  place-items: center;
+
+  overflow: hidden;
+
+  border-radius: 50%;
+
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+
+  font-size: 12px;
+  font-weight: 900;
+}
+
+
+.admin-review-avatar img {
+  width: 100%;
+  height: 100%;
+
+  display: block;
+
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+
+/* =========================================================
+   BODY
+========================================================= */
+
+.admin-review-body {
+  flex: 1;
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.admin-review-heading {
+  width: 100%;
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 10px;
+
+  margin: 0;
+}
+
+
+.admin-review-user {
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: 14px;
+  line-height: 1.2;
+
+  font-weight: 900;
+}
+
+
+/* =========================================================
+   DESTINATION
+========================================================= */
+
+.admin-review-destination {
+  margin: 2px 0 0;
+
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 4px;
+
+  color: var(--muted);
+
+  font-size: 11px;
+  line-height: 1.25;
+
+  font-weight: 700;
+}
+
+
+.admin-review-destination svg {
+  width: 13px;
+  height: 13px;
+
+  flex-shrink: 0;
+
+  color: var(--teal);
+}
+
+
+.admin-review-destination strong {
+  color: #34546b;
+
+  font-weight: 900;
+}
+
+
+/* =========================================================
+   TIME
+========================================================= */
+
+.admin-review-time {
+  flex-shrink: 0;
+
+  margin: 1px 0 0;
+
+  color: var(--muted);
+
+  font-size: 10px;
+  line-height: 1.2;
+
+  font-weight: 800;
+}
+
+
+/* =========================================================
+   RATING
+========================================================= */
+
+.admin-review-stars {
+  display: flex;
+  align-items: center;
+
+  gap: 1px;
+
+  margin: 3px 0 0 !important;
+  padding: 0 !important;
+
+  color: #f4a900;
+
+  font-size: 13px;
+  line-height: 1;
+
+  letter-spacing: 1px;
+}
+
+
+.admin-review-stars .empty {
+  color: #d5e0e6;
+}
+
+
+.admin-review-stars small {
+  margin-left: 6px;
+
+  color: #45647b;
+
+  font-size: 10.5px;
+  font-weight: 900;
+
+  letter-spacing: 0;
+}
+
+
+/* =========================================================
+   COMMENT TEXT
+========================================================= */
+
+.admin-review-text {
+  width: 100%;
+
+  margin: 6px 0 0 !important;
+  padding: 0 !important;
+
+  color: #3f5e73;
+
+  font-size: 12.5px;
+  line-height: 1.45;
+
+  text-align: left;
+
+  /*
+     IMPORTANT:
+     DO NOT use pre-wrap here.
+     It preserves the spaces/newlines from the JS template.
+  */
+  white-space: normal;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   NO RATING
+========================================================= */
+
+.admin-review-no-rating {
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+
+  margin: 3px 0 0;
+
+  color: #8ba0ae;
+
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+
+.admin-review-no-rating svg {
+  width: 12px;
+  height: 12px;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+
+  .admin-review-card {
+    padding: 12px;
+
+    gap: 9px;
+  }
+
+
+  .admin-review-avatar {
+    width: 36px;
+    height: 36px;
+
+    flex-basis: 36px;
+  }
+
+
+  .admin-review-user {
+    font-size: 13px;
+  }
+
+}
+

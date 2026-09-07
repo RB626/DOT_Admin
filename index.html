@@ -15,7 +15,68 @@
 
 <body>
 
-  <div class="admin-shell">
+  <!-- =========================================================
+     DOT ADMIN FIREBASE LOGIN
+========================================================= -->
+
+  <div class="dot-login-screen" id="dotLoginScreen">
+
+    <div class="dot-login-card">
+
+      <div class="dot-login-logo">
+        <i data-lucide="shield-check"></i>
+      </div>
+
+      <h2>
+        DOT Admin Sign In
+      </h2>
+
+      <p>
+        Sign in with your authorized TravelBuddy DOT account.
+      </p>
+
+
+      <form id="dotLoginForm">
+
+        <div class="dot-login-field">
+
+          <label for="dotAdminEmail">
+            Email address
+          </label>
+
+          <input id="dotAdminEmail" type="email" autocomplete="email" placeholder="admin@tourism.gov.ph" required>
+
+        </div>
+
+
+        <div class="dot-login-field">
+
+          <label for="dotAdminPassword">
+            Password
+          </label>
+
+          <input id="dotAdminPassword" type="password" autocomplete="current-password" placeholder="Enter your password"
+            required>
+
+        </div>
+
+
+        <button class="dot-login-button" id="dotLoginButton" type="submit">
+          <i data-lucide="log-in"></i>
+          <span>Sign In</span>
+        </button>
+
+
+        <div class="dot-login-message" id="dotLoginMessage" hidden>
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+  <div class="admin-shell" id="dotAdminShell" hidden>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <aside class="admin-sidebar" id="adminSidebar">
@@ -44,7 +105,9 @@
         <div class="sidebar-section-label">Engagement</div>
         <button class="sidebar-link" data-view="reviews">
           <i data-lucide="message-square-text"></i><span>Comments &amp; Ratings</span>
-          <span class="sidebar-badge">4</span>
+          <span class="sidebar-badge" id="reviewsSidebarBadge" hidden>
+            0
+          </span>
         </button>
 
         <div class="sidebar-section-label">Account</div>
@@ -57,8 +120,8 @@
         <div class="sidebar-account">
           <div class="sidebar-avatar">MR</div>
           <div class="sidebar-account-info">
-            <strong>Maria Reyes</strong>
-            <span>maria.reyes@tourism.gov.ph</span>
+            <strong>Mary Rose</strong>
+            <span>maryrose.gabane@tourism.gov.ph</span>
           </div>
         </div>
         <button class="sidebar-logout"><i data-lucide="log-out"></i>Log Out</button>
@@ -363,10 +426,27 @@
 
         <!-- ============ REVIEWS ============ -->
         <section class="admin-view" id="view-reviews">
+
           <div class="section-head">
-            <h3>Comments &amp; ratings</h3>
+
+            <div>
+
+              <h3>
+                Comments &amp; ratings
+              </h3>
+
+              <p class="reviews-subtitle" id="reviewsResultCount">
+                Loading traveler comments...
+              </p>
+
+            </div>
+
           </div>
-          <div id="reviewsList"></div>
+
+
+          <div class="admin-reviews-list" id="reviewsList">
+          </div>
+
         </section>
 
         <!-- ============ ACCOUNT ============ -->
@@ -376,8 +456,8 @@
               <h4>Account Settings</h4>
             </div>
             <div class="form-card-body">
-              <div class="field"><label>Full name</label><input value="Maria Reyes"></div>
-              <div class="field"><label>Email address</label><input value="maria.reyes@tourism.gov.ph" type="email">
+              <div class="field"><label>Full name</label><input value="Mary Rose"></div>
+              <div class="field"><label>Email address</label><input value="maryrose.gabane@tourism.gov.ph" type="email">
               </div>
               <div class="field"><label>Office / Region</label><input value="DOT Region VIII — Eastern Visayas"></div>
               <div class="field"><label>Role</label><input value="DOT Admin" disabled></div>

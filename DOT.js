@@ -2,18 +2,10 @@
    FIREBASE
 ========================================================= */
 
-import { db } from "./firebase-config.js";
+import { auth, db } from "./firebase-config.js";
 
-
-import {
-  collection,
-  doc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import { collection, collectionGroup, doc, setDoc, updateDoc, deleteDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 
 import {
@@ -93,52 +85,147 @@ const ACTIVITY = [
 ];
 
 
-const REVIEWS = [
-
-  {
-    name: "Kim A.",
-    dest: "Sohoton Caves & Natural Bridge",
-    text: "Absolutely breathtaking!",
-    rating: 5,
-    time: "2 days ago"
-  },
-
-  {
-    name: "Mark T.",
-    dest: "Marabut Marine Park",
-    text: "Beautiful spot.",
-    rating: 4,
-    time: "4 days ago"
-  }
-
-];
-
-
 /* =========================================================
    STATE
 ========================================================= */
 
 let destinations = [];
-
 let editingId = null;
-
+let adminComments = [];
+let adminRatings = [];
+let adminSavedPlaces = [];
+let adminSavedPlacesUnsubscribe = null;
+let adminCommentsUnsubscribe = null;
+let adminRatingsUnsubscribe = null;
 let mainPhotoDataUrl = null;
 let mainPhotoFile = null;
-
 let supportingPhotos = [];
-
 let uploadedDocs = [];
-
 let destStatusFilter = "All";
-
 let destSearchTerm = "";
-
 let categoryFilter = "All";
-
 let pendingDeleteId = null;
-
 let pendingUnpublishId = null;
 
+/* =========================================================
+   REALTIME SAVED PLACES LISTENER
+========================================================= */
+
+function startRealtimeAdminSavedPlacesListener() {
+
+  /* =========================================
+     STOP OLD LISTENER
+  ========================================= */
+
+  if (
+    adminSavedPlacesUnsubscribe
+  ) {
+
+    adminSavedPlacesUnsubscribe();
+
+    adminSavedPlacesUnsubscribe =
+      null;
+
+  }
+
+
+  /* =========================================
+     LISTEN TO EVERY USER'S savedPlaces
+  ========================================= */
+
+  adminSavedPlacesUnsubscribe =
+    onSnapshot(
+
+      collectionGroup(
+        db,
+        "savedPlaces"
+      ),
+
+      snapshot => {
+
+        adminSavedPlaces =
+          snapshot.docs.map(
+            documentSnapshot => ({
+
+              id:
+                documentSnapshot.id,
+
+              ...documentSnapshot.data()
+
+            })
+          );
+
+
+        console.log(
+          "Realtime Saved Places:",
+          adminSavedPlaces
+        );
+
+
+        /* =====================================
+           UPDATE DASHBOARD TOTAL
+        ===================================== */
+
+        renderStats();
+
+
+        /* =====================================
+           UPDATE SAVE COUNTS ON DESTINATION
+           CARDS TOO
+        ===================================== */
+
+        renderRecentDest();
+
+        renderDestList();
+
+      },
+
+      error => {
+
+        console.error(
+          "ADMIN SAVED PLACES ERROR:",
+          error
+        );
+
+      }
+
+    );
+
+}
+
+/* =========================================================
+   COUNT SAVES FOR ONE DESTINATION
+========================================================= */
+
+function getRealtimeDestinationSaveCount(
+  destinationId
+) {
+
+  if (
+    !destinationId
+  ) {
+
+    return 0;
+
+  }
+
+
+  return adminSavedPlaces.filter(
+    savedPlace => {
+
+      const savedDestinationId =
+        savedPlace.destinationId
+        ||
+        savedPlace.id;
+
+
+      return savedDestinationId ===
+        destinationId;
+
+    }
+  ).length;
+
+}
 
 /* =========================================================
    HELPERS
@@ -221,6 +308,304 @@ function cleanFileName(
     /[^a-zA-Z0-9._-]/g,
     "-"
   );
+
+}
+
+/* =========================================================
+   SAFE HTML
+========================================================= */
+
+function escapeAdminHTML(
+  value
+) {
+
+  return String(
+    value ?? ""
+  )
+    .replaceAll(
+      "&",
+      "&amp;"
+    )
+    .replaceAll(
+      "<",
+      "&lt;"
+    )
+    .replaceAll(
+      ">",
+      "&gt;"
+    )
+    .replaceAll(
+      '"',
+      "&quot;"
+    )
+    .replaceAll(
+      "'",
+      "&#039;"
+    );
+
+}
+
+
+/* =========================================================
+   COMMENT TIMESTAMP
+========================================================= */
+
+function getAdminCommentTime(
+  comment
+) {
+
+  if (
+    comment.createdAt
+    &&
+    typeof comment.createdAt.toMillis ===
+    "function"
+  ) {
+
+    return comment.createdAt.toMillis();
+
+  }
+
+
+  if (
+    Number.isFinite(
+      Number(
+        comment.clientCreatedAt
+      )
+    )
+  ) {
+
+    return Number(
+      comment.clientCreatedAt
+    );
+
+  }
+
+
+  return 0;
+
+}
+
+
+/* =========================================================
+   FRIENDLY COMMENT DATE
+========================================================= */
+
+function formatAdminCommentTime(
+  comment
+) {
+
+  const timestamp =
+    getAdminCommentTime(
+      comment
+    );
+
+
+  if (
+    !timestamp
+  ) {
+
+    return "Recently";
+
+  }
+
+
+  const difference =
+    Date.now() -
+    timestamp;
+
+
+  const seconds =
+    Math.max(
+      0,
+      Math.floor(
+        difference /
+        1000
+      )
+    );
+
+
+  if (
+    seconds <
+    60
+  ) {
+
+    return "Just now";
+
+  }
+
+
+  const minutes =
+    Math.floor(
+      seconds /
+      60
+    );
+
+
+  if (
+    minutes <
+    60
+  ) {
+
+    return `${minutes}m ago`;
+
+  }
+
+
+  const hours =
+    Math.floor(
+      minutes /
+      60
+    );
+
+
+  if (
+    hours <
+    24
+  ) {
+
+    return `${hours}h ago`;
+
+  }
+
+
+  const days =
+    Math.floor(
+      hours /
+      24
+    );
+
+
+  if (
+    days <
+    7
+  ) {
+
+    return `${days}d ago`;
+
+  }
+
+
+  return new Date(
+    timestamp
+  )
+    .toLocaleDateString(
+      "en-US",
+      {
+        month:
+          "short",
+
+        day:
+          "numeric",
+
+        year:
+          "numeric"
+      }
+    );
+
+}
+
+
+/* =========================================================
+   GET DESTINATION NAME
+========================================================= */
+
+function getAdminDestinationName(
+  destinationId
+) {
+
+  const destination =
+    destinations.find(
+      item =>
+        item.id ===
+        destinationId
+    );
+
+
+  return destination?.name
+    ||
+    "Unknown destination";
+
+}
+
+
+/* =========================================================
+   GET USER RATING FOR THAT EXACT DESTINATION
+========================================================= */
+
+function getAdminUserDestinationRating(
+  userId,
+  destinationId
+) {
+
+  if (
+    !userId
+    ||
+    !destinationId
+  ) {
+
+    return 0;
+
+  }
+
+
+  const ratingRecord =
+    adminRatings.find(
+      rating =>
+
+        rating.userId ===
+        userId
+
+        &&
+
+        rating.destinationId ===
+        destinationId
+    );
+
+
+  return Number(
+    ratingRecord?.rating
+    ||
+    0
+  );
+
+}
+
+
+/* =========================================================
+   USER INITIALS
+========================================================= */
+
+function getAdminCommentInitials(
+  name
+) {
+
+  return String(
+    name ||
+    "Traveler"
+  )
+    .trim()
+    .split(
+      /\s+/
+    )
+    .filter(
+      Boolean
+    )
+    .slice(
+      0,
+      2
+    )
+    .map(
+      part =>
+        part.charAt(
+          0
+        )
+          .toUpperCase()
+    )
+    .join(
+      ""
+    )
+    ||
+    "T";
 
 }
 
@@ -775,23 +1160,12 @@ function renderStats() {
     ).length;
 
 
+  /* =====================================================
+   ACTUAL REALTIME SAVED PLACES
+===================================================== */
+
   const totalSaves =
-    destinations.reduce(
-      (
-        total,
-        destination
-      ) => {
-
-        return total +
-          Number(
-            destination.saves
-            ||
-            0
-          );
-
-      },
-      0
-    );
+    adminSavedPlaces.length;
 
 
   const cards = [
@@ -956,11 +1330,15 @@ function adminDestCard(
 
                     <span>
 
-                        <i data-lucide="heart"></i>
+  <i data-lucide="heart"></i>
 
-                        ${Number(destination.saves || 0).toLocaleString()}
+  ${getRealtimeDestinationSaveCount(
+    destination.id
+  )
+      .toLocaleString()
+    }
 
-                    </span>
+</span>
 
                     <span>
 
@@ -4255,86 +4633,528 @@ document
 
 
 /* =========================================================
-   REVIEWS
+   RENDER REALTIME TRAVELER COMMENTS
 ========================================================= */
 
 function renderReviews() {
 
-  document.getElementById(
-    "reviewsList"
-  ).innerHTML =
+  const reviewsList =
+    document.getElementById(
+      "reviewsList"
+    );
 
-    REVIEWS
+
+  const reviewsResultCount =
+    document.getElementById(
+      "reviewsResultCount"
+    );
+
+
+  const reviewsSidebarBadge =
+    document.getElementById(
+      "reviewsSidebarBadge"
+    );
+
+
+  if (
+    !reviewsList
+  ) {
+
+    return;
+
+  }
+
+
+  /* =====================================================
+     SORT NEWEST COMMENT FIRST
+  ===================================================== */
+
+  const comments =
+    [
+      ...adminComments
+    ]
+      .sort(
+        (
+          first,
+          second
+        ) =>
+
+          getAdminCommentTime(
+            second
+          )
+
+          -
+
+          getAdminCommentTime(
+            first
+          )
+      );
+
+
+  /* =====================================================
+     UPDATE COMMENT COUNT
+  ===================================================== */
+
+  const total =
+    comments.length;
+
+
+  if (
+    reviewsResultCount
+  ) {
+
+    reviewsResultCount.textContent =
+
+      total ===
+        1
+
+        ?
+
+        "1 traveler comment"
+
+        :
+
+        `${total} traveler comments`;
+
+  }
+
+
+  if (
+    reviewsSidebarBadge
+  ) {
+
+    reviewsSidebarBadge.textContent =
+      total >
+        99
+
+        ?
+
+        "99+"
+
+        :
+
+        String(
+          total
+        );
+
+
+    reviewsSidebarBadge.hidden =
+      total ===
+      0;
+
+  }
+
+
+  /* =====================================================
+     EMPTY STATE
+  ===================================================== */
+
+  if (
+    total ===
+    0
+  ) {
+
+    reviewsList.innerHTML = `
+
+      <div class="admin-reviews-empty">
+
+        <div class="admin-reviews-empty-icon">
+
+          <i data-lucide="message-circle"></i>
+
+        </div>
+
+
+        <h4>
+          No traveler comments yet
+        </h4>
+
+
+        <p>
+          Comments submitted by travelers will
+          automatically appear here.
+        </p>
+
+      </div>
+
+    `;
+
+
+    refreshIcons();
+
+    return;
+
+  }
+
+
+  /* =====================================================
+     BUILD COMMENT CARDS
+  ===================================================== */
+
+  reviewsList.innerHTML =
+
+    comments
       .map(
-        review => `
+        comment => {
 
-                    <div
-                        class="admin-dest-card"
-                        style="align-items:flex-start;"
-                    >
-
-                        <div
-                            class="sidebar-avatar"
-                            style="width:44px;height:44px;flex-shrink:0;"
-                        >
-
-                            ${review.name
-            .split(" ")
-            .map(name => name[0])
-            .join("")}
-
-                        </div>
+          const userName =
+            comment.userName
+            ||
+            "Traveler";
 
 
-                        <div class="admin-dest-info">
-
-                            <h4>
-
-                                ${review.name}
-
-                                <span
-                                    style="font-weight:700;color:var(--muted);font-size:11.5px;"
-                                >
-                                    on ${review.dest}
-                                </span>
-
-                            </h4>
+          const destinationName =
+            getAdminDestinationName(
+              comment.destinationId
+            );
 
 
-                            <div class="admin-dest-meta">
+          const rating =
+            getAdminUserDestinationRating(
 
-                                ${"★".repeat(review.rating)}
-                                ${"☆".repeat(5 - review.rating)}
+              comment.userId,
 
-                            </div>
+              comment.destinationId
 
-
-                            <p
-                                style="font-size:13px;color:var(--muted);line-height:1.5;"
-                            >
-
-                                ${review.text}
-
-                            </p>
+            );
 
 
-                            <div class="admin-dest-stats">
+          const initials =
+            getAdminCommentInitials(
+              userName
+            );
 
-                                <span>
-                                    ${review.time}
-                                </span>
 
-                            </div>
+          const profilePhoto =
+            comment.userPhoto
+            ||
+            "";
 
-                        </div>
+
+          const avatarHTML =
+
+            profilePhoto
+
+              ?
+
+              `
+
+                <img
+                  src="${escapeAdminHTML(profilePhoto)}"
+                  alt="${escapeAdminHTML(userName)}"
+                  referrerpolicy="no-referrer"
+                >
+
+              `
+
+              :
+
+              escapeAdminHTML(
+                initials
+              );
+
+
+          const ratingHTML =
+
+            rating >
+              0
+
+              ?
+
+              `
+
+                <div
+                  class="admin-review-stars"
+                  aria-label="${rating} out of 5 stars"
+                >
+
+                  <span>
+                    ${"★".repeat(rating)}
+                  </span>
+
+                  <span class="empty">
+                    ${"★".repeat(
+                Math.max(
+                  0,
+                  5 -
+                  rating
+                )
+              )}
+                  </span>
+
+                  <small>
+                    ${rating}.0
+                  </small>
+
+                </div>
+
+              `
+
+              :
+
+              `
+
+                <div class="admin-review-no-rating">
+
+                  <i data-lucide="star"></i>
+
+                  No rating submitted
+
+                </div>
+
+              `;
+
+
+          return `
+
+            <article
+              class="admin-review-card"
+              data-comment-id="${escapeAdminHTML(comment.id)}"
+              data-destination-id="${escapeAdminHTML(comment.destinationId)}"
+            >
+
+              <div class="admin-review-avatar">
+
+                ${avatarHTML}
+
+              </div>
+
+
+              <div class="admin-review-body">
+
+                <div class="admin-review-heading">
+
+                  <div>
+
+                    <div class="admin-review-user">
+
+                      ${escapeAdminHTML(userName)}
 
                     </div>
 
-                `
+
+                    <div class="admin-review-destination">
+
+                      <i data-lucide="map-pin"></i>
+
+                      Commented on
+
+                      <strong>
+                        ${escapeAdminHTML(destinationName)}
+                      </strong>
+
+                    </div>
+
+                  </div>
+
+
+                  <time class="admin-review-time">
+
+                    ${escapeAdminHTML(
+            formatAdminCommentTime(
+              comment
+            )
+          )}
+
+                  </time>
+
+                </div>
+
+
+                ${ratingHTML}
+
+
+                <p class="admin-review-text">
+
+                  ${escapeAdminHTML(
+            comment.text
+            ||
+            ""
+          )}
+
+                </p>
+
+              </div>
+
+            </article>
+
+          `;
+
+        }
       )
       .join(
         ""
       );
+
+
+  refreshIcons();
+
+}
+
+/* =========================================================
+   REALTIME COMMENTS & RATINGS
+========================================================= */
+
+function startRealtimeReviewsListener() {
+
+  /* =====================================================
+     DON'T START DUPLICATE LISTENERS
+  ===================================================== */
+
+  if (
+    adminCommentsUnsubscribe
+  ) {
+
+    adminCommentsUnsubscribe();
+
+    adminCommentsUnsubscribe =
+      null;
+
+  }
+
+
+  if (
+    adminRatingsUnsubscribe
+  ) {
+
+    adminRatingsUnsubscribe();
+
+    adminRatingsUnsubscribe =
+      null;
+
+  }
+
+
+  /* =====================================================
+     ALL TRAVELER COMMENTS
+  ===================================================== */
+
+  adminCommentsUnsubscribe =
+    onSnapshot(
+
+      collection(
+        db,
+        "destinationComments"
+      ),
+
+      snapshot => {
+
+        adminComments =
+          snapshot.docs.map(
+            documentSnapshot => ({
+
+              id:
+                documentSnapshot.id,
+
+              ...documentSnapshot.data()
+
+            })
+          );
+
+
+        console.log(
+          "Realtime traveler comments:",
+          adminComments
+        );
+
+
+        renderReviews();
+
+      },
+
+      error => {
+
+        console.error(
+          "ADMIN COMMENTS FIRESTORE ERROR:",
+          error
+        );
+
+
+        const reviewsList =
+          document.getElementById(
+            "reviewsList"
+          );
+
+
+        if (
+          reviewsList
+        ) {
+
+          reviewsList.innerHTML = `
+
+            <div class="admin-reviews-empty">
+
+              <h4>
+                Unable to load comments
+              </h4>
+
+              <p>
+                Check Firestore permissions and try again.
+              </p>
+
+            </div>
+
+          `;
+
+        }
+
+      }
+
+    );
+
+
+  /* =====================================================
+     ALL TRAVELER RATINGS
+  ===================================================== */
+
+  adminRatingsUnsubscribe =
+    onSnapshot(
+
+      collection(
+        db,
+        "destinationRatings"
+      ),
+
+      snapshot => {
+
+        adminRatings =
+          snapshot.docs.map(
+            documentSnapshot => ({
+
+              id:
+                documentSnapshot.id,
+
+              ...documentSnapshot.data()
+
+            })
+          );
+
+
+        console.log(
+          "Realtime traveler ratings:",
+          adminRatings
+        );
+
+
+        /*
+           Re-render comments so their matching rating
+           appears beside them.
+        */
+
+        renderReviews();
+
+      },
+
+      error => {
+
+        console.error(
+          "ADMIN RATINGS FIRESTORE ERROR:",
+          error
+        );
+
+      }
+
+    );
 
 }
 
@@ -4378,10 +5198,223 @@ function renderAll() {
 }
 
 /* =========================================================
+   DOT ADMIN AUTHENTICATION
+========================================================= */
+
+const dotLoginScreen =
+  document.getElementById(
+    "dotLoginScreen"
+  );
+
+
+const dotAdminShell =
+  document.getElementById(
+    "dotAdminShell"
+  );
+
+
+const dotLoginForm =
+  document.getElementById(
+    "dotLoginForm"
+  );
+
+
+const dotAdminEmail =
+  document.getElementById(
+    "dotAdminEmail"
+  );
+
+
+const dotAdminPassword =
+  document.getElementById(
+    "dotAdminPassword"
+  );
+
+
+const dotLoginButton =
+  document.getElementById(
+    "dotLoginButton"
+  );
+
+
+const dotLoginMessage =
+  document.getElementById(
+    "dotLoginMessage"
+  );
+
+
+let dotAdminStarted =
+  false;
+
+
+/* =========================================================
+   SHOW LOGIN ERROR
+========================================================= */
+
+function showDotLoginMessage(
+  message
+) {
+
+  if (
+    !dotLoginMessage
+  ) {
+
+    return;
+
+  }
+
+
+  dotLoginMessage.textContent =
+    message;
+
+
+  dotLoginMessage.hidden =
+    false;
+
+}
+
+
+/* =========================================================
+   SIGN IN DOT ADMIN
+========================================================= */
+
+dotLoginForm
+  ?.addEventListener(
+    "submit",
+    async event => {
+
+      event.preventDefault();
+
+
+      const email =
+        dotAdminEmail.value
+          .trim();
+
+
+      const password =
+        dotAdminPassword.value;
+
+
+      if (
+        !email
+        ||
+        !password
+      ) {
+
+        return;
+
+      }
+
+
+      dotLoginButton.disabled =
+        true;
+
+
+      dotLoginMessage.hidden =
+        true;
+
+
+      try {
+
+        /* =========================================
+           KEEP DOT ADMIN LOGGED IN
+        ========================================= */
+
+        await setPersistence(
+          auth,
+          browserLocalPersistence
+        );
+
+
+        /* =========================================
+           FIREBASE AUTHENTICATION
+        ========================================= */
+
+        await signInWithEmailAndPassword(
+
+          auth,
+
+          email,
+
+          password
+
+        );
+
+
+        /*
+           onAuthStateChanged() below will
+           open the admin dashboard.
+        */
+
+      } catch (
+      error
+      ) {
+
+        console.error(
+          "DOT FIREBASE LOGIN ERROR:",
+          error
+        );
+
+
+        let message =
+          "Unable to sign in. Check your email and password.";
+
+
+        if (
+          error.code ===
+          "auth/invalid-credential"
+        ) {
+
+          message =
+            "Incorrect email or password.";
+
+        }
+
+
+        if (
+          error.code ===
+          "auth/too-many-requests"
+        ) {
+
+          message =
+            "Too many attempts. Please try again later.";
+
+        }
+
+
+        showDotLoginMessage(
+          message
+        );
+
+      } finally {
+
+        dotLoginButton.disabled =
+          false;
+
+      }
+
+    }
+  );
+
+
+/* =========================================================
    START DOT ADMIN
 ========================================================= */
 
 function initializeDOTAdmin() {
+
+  if (
+    dotAdminStarted
+  ) {
+
+    return;
+
+  }
+
+
+  dotAdminStarted =
+    true;
+
 
   refreshIcons();
 
@@ -4392,13 +5425,166 @@ function initializeDOTAdmin() {
   renderReviews();
 
 
-  /* =====================================================
-     LOAD DESTINATIONS DIRECTLY FROM FIRESTORE
-  ===================================================== */
+  /* =========================================
+     FIRESTORE LISTENER STARTS ONLY
+     AFTER FIREBASE AUTH SUCCEEDS
+  ========================================= */
 
   startRealtimeDestinationListener();
 
+  startRealtimeReviewsListener();
+
+  startRealtimeAdminSavedPlacesListener();
+
 }
 
+/* =========================================================
+   DOT ADMIN LOGOUT
+========================================================= */
 
-initializeDOTAdmin();
+document
+  .querySelector(
+    ".sidebar-logout"
+  )
+  ?.addEventListener(
+    "click",
+    async () => {
+
+      try {
+
+        await signOut(
+          auth
+        );
+
+
+        console.log(
+          "DOT Admin signed out."
+        );
+
+      } catch (
+      error
+      ) {
+
+        console.error(
+          "DOT LOGOUT ERROR:",
+          error
+        );
+
+      }
+
+    }
+  );
+
+
+/* =========================================================
+   FIREBASE AUTH STATE
+========================================================= */
+
+onAuthStateChanged(
+
+  auth,
+
+  user => {
+
+    console.log(
+      "DOT FIREBASE AUTH USER:",
+      user
+        ? user.email
+        : "Not signed in"
+    );
+
+
+    /* =========================================
+       SIGNED OUT
+    ========================================= */
+
+    if (
+      !user
+    ) {
+
+      /* =========================================
+   STOP REVIEW LISTENERS
+========================================= */
+
+      if (
+        adminCommentsUnsubscribe
+      ) {
+
+        adminCommentsUnsubscribe();
+
+        adminCommentsUnsubscribe =
+          null;
+
+      }
+
+
+      if (
+        adminRatingsUnsubscribe
+      ) {
+
+        adminRatingsUnsubscribe();
+
+        adminRatingsUnsubscribe =
+          null;
+
+      }
+
+
+      adminComments =
+        [];
+
+
+      adminRatings =
+        [];
+
+      if (
+        adminSavedPlacesUnsubscribe
+      ) {
+
+        adminSavedPlacesUnsubscribe();
+
+        adminSavedPlacesUnsubscribe =
+          null;
+
+      }
+
+
+      adminSavedPlaces =
+        [];
+
+      dotAdminStarted =
+        false;
+
+
+      dotAdminShell.hidden =
+        true;
+
+
+      dotLoginScreen.hidden =
+        false;
+
+
+      refreshIcons();
+
+      return;
+
+    }
+
+
+    /* =========================================
+       SIGNED IN
+    ========================================= */
+
+    dotLoginScreen.hidden =
+      true;
+
+
+    dotAdminShell.hidden =
+      false;
+
+
+    initializeDOTAdmin();
+
+  }
+
+);
