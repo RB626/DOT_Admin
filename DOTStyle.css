@@ -2632,3 +2632,33 @@ p {
 
   font-size: 10.5px;
 }
+
+/* =========================================================
+   RATING-ONLY ENGAGEMENT CARD
+========================================================= */
+
+.admin-rating-card {
+  border-left:
+    3px solid #f4b000;
+}
+
+
+.admin-rating-card .admin-review-destination svg {
+  color:
+    #d89a00;
+}
+
+
+.admin-rating-message {
+  margin:
+    3px 0 0;
+
+  color:
+    var(--muted);
+
+  font-size:
+    11.5px;
+
+  font-weight:
+    700;
+}

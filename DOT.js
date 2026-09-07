@@ -511,6 +511,83 @@ function getAdminUserDestinationRating(
 
 }
 
+/* =========================================================
+   REALTIME AVERAGE RATING FOR DESTINATION
+========================================================= */
+
+function getRealtimeDestinationAverageRating(
+  destinationId
+) {
+
+  if (
+    !destinationId
+  ) {
+
+    return "—";
+
+  }
+
+
+  const ratings =
+    adminRatings.filter(
+      rating =>
+        rating.destinationId ===
+        destinationId
+        &&
+        Number.isFinite(
+          Number(
+            rating.rating
+          )
+        )
+    );
+
+
+  /* =========================================
+     NO RATINGS YET
+  ========================================= */
+
+  if (
+    ratings.length ===
+    0
+  ) {
+
+    return "—";
+
+  }
+
+
+  /* =========================================
+     CALCULATE AVERAGE
+  ========================================= */
+
+  const total =
+    ratings.reduce(
+      (
+        sum,
+        rating
+      ) => {
+
+        return sum +
+          Number(
+            rating.rating
+          );
+
+      },
+      0
+    );
+
+
+  const average =
+    total /
+    ratings.length;
+
+
+  return average.toFixed(
+    1
+  );
+
+}
+
 
 /* =========================================================
    USER INITIALS
@@ -806,6 +883,16 @@ function switchView(
 
 
   closeSidebarMobile();
+
+  if (
+    view ===
+    "reviews"
+  ) {
+
+    markAdminEngagementNotificationsRead();
+
+  }
+
 
   window.scrollTo(
     0,
@@ -1793,7 +1880,7 @@ function refreshRealtimeAdminNotifications() {
 
 
   renderNotifPanel();
-
+  updateReviewsSidebarBadge();
   renderActivity();
 
 }
@@ -2008,6 +2095,137 @@ function renderNotifPanel() {
 
 
   refreshIcons();
+
+}
+
+/* =========================================================
+   UPDATE COMMENTS & RATINGS SIDEBAR BADGE
+========================================================= */
+
+function updateReviewsSidebarBadge() {
+
+  const badge =
+    document.getElementById(
+      "reviewsSidebarBadge"
+    );
+
+
+  if (
+    !badge
+  ) {
+
+    return;
+
+  }
+
+
+  const unreadEngagement =
+    adminRealtimeNotifications.filter(
+      notification =>
+
+        notification.unread
+
+        &&
+
+        (
+          notification.type ===
+          "comment"
+
+          ||
+
+          notification.type ===
+          "rating"
+        )
+    );
+
+
+  const total =
+    unreadEngagement.length;
+
+
+  badge.textContent =
+    total >
+      99
+
+      ?
+
+      "99+"
+
+      :
+
+      String(
+        total
+      );
+
+
+  badge.hidden =
+    total ===
+    0;
+
+}
+
+/* =========================================================
+   MARK COMMENTS & RATINGS AS SEEN
+========================================================= */
+
+function markAdminEngagementNotificationsRead() {
+
+  const readNotifications =
+    getAdminReadNotifications();
+
+
+  let changed =
+    false;
+
+
+  adminRealtimeNotifications.forEach(
+    notification => {
+
+      const isEngagement =
+        notification.type ===
+        "comment"
+
+        ||
+
+        notification.type ===
+        "rating";
+
+
+      if (
+        isEngagement
+        &&
+        notification.unread
+      ) {
+
+        readNotifications.add(
+          notification.id
+        );
+
+
+        changed =
+          true;
+
+      }
+
+    }
+  );
+
+
+  if (
+    !changed
+  ) {
+
+    return;
+
+  }
+
+
+  saveAdminReadNotifications(
+    readNotifications
+  );
+
+
+  refreshRealtimeAdminNotifications();
 
 }
 
@@ -2474,31 +2692,29 @@ function adminDestCard(
 
                     <span>
 
-  <i data-lucide="heart"></i>
+                   <i data-lucide="heart"></i>
 
-  ${getRealtimeDestinationSaveCount(
+                   ${getRealtimeDestinationSaveCount(
     destination.id
   )
       .toLocaleString()
     }
 
-</span>
+                   </span>
 
-                    <span>
 
-                        <i data-lucide="star"></i>
+                    <span
+                    title="Average traveler rating"
+                    >
 
-                        ${destination.rating || "—"}
+                   <i data-lucide="star"></i>
 
-                    </span>
+                   ${getRealtimeDestinationAverageRating(
+      destination.id
+    )
+    }
 
-                    <span>
-
-                        <i data-lucide="clock"></i>
-
-                        ${destination.updated || "—"}
-
-                    </span>
+                   </span>
 
                 </div>
 
@@ -6073,7 +6289,7 @@ document
 
 
 /* =========================================================
-   RENDER REALTIME TRAVELER COMMENTS
+   RENDER REALTIME COMMENTS + RATINGS
 ========================================================= */
 
 function renderReviews() {
@@ -6090,12 +6306,6 @@ function renderReviews() {
     );
 
 
-  const reviewsSidebarBadge =
-    document.getElementById(
-      "reviewsSidebarBadge"
-    );
-
-
   if (
     !reviewsList
   ) {
@@ -6106,91 +6316,180 @@ function renderReviews() {
 
 
   /* =====================================================
-     SORT NEWEST COMMENT FIRST
+     BUILD COMMENT ACTIVITIES
   ===================================================== */
 
-  const comments =
+  const commentActivities =
+    adminComments.map(
+      comment => ({
+
+        id:
+          `comment_${comment.id}`,
+
+        type:
+          "comment",
+
+        userId:
+          comment.userId,
+
+        userName:
+          comment.userName
+          ||
+          "Traveler",
+
+        userPhoto:
+          comment.userPhoto
+          ||
+          "",
+
+        destinationId:
+          comment.destinationId,
+
+        text:
+          comment.text
+          ||
+          "",
+
+        timestamp:
+          getAdminCommentTime(
+            comment
+          ),
+
+        comment:
+          comment
+
+      })
+    );
+
+
+  /* =====================================================
+     BUILD RATING ACTIVITIES
+  ===================================================== */
+
+  const ratingActivities =
+    adminRatings.map(
+      rating => {
+
+        /* =========================================
+           FIND GMAIL PHOTO FROM EXISTING COMMENTS
+        ========================================= */
+
+        const matchingComment =
+          adminComments.find(
+            comment =>
+              comment.userId ===
+              rating.userId
+              &&
+              comment.userPhoto
+          );
+
+
+        const resolvedUserPhoto =
+          rating.userPhoto
+          ||
+          matchingComment?.userPhoto
+          ||
+          "";
+
+
+        return {
+
+          id:
+            `rating_${rating.id}`,
+
+          type:
+            "rating",
+
+          userId:
+            rating.userId,
+
+          userName:
+            rating.userName
+            ||
+            "Traveler",
+
+          userPhoto:
+            resolvedUserPhoto,
+
+          destinationId:
+            rating.destinationId,
+
+          rating:
+            Number(
+              rating.rating
+            )
+            ||
+            0,
+
+          timestamp:
+            adminTimestampToMillis(
+              rating.updatedAt
+            ),
+
+          ratingRecord:
+            rating
+
+        };
+
+      }
+    );
+
+
+  /* =====================================================
+     COMBINE + SORT NEWEST FIRST
+  ===================================================== */
+
+  const activities =
     [
-      ...adminComments
+      ...commentActivities,
+      ...ratingActivities
     ]
       .sort(
         (
           first,
           second
         ) =>
-
-          getAdminCommentTime(
-            second
-          )
-
-          -
-
-          getAdminCommentTime(
-            first
-          )
+          second.timestamp -
+          first.timestamp
       );
 
 
   /* =====================================================
-     UPDATE COMMENT COUNT
+     COUNTS
   ===================================================== */
 
-  const total =
-    comments.length;
+  const commentCount =
+    commentActivities.length;
+
+
+  const ratingCount =
+    ratingActivities.length;
 
 
   if (
     reviewsResultCount
   ) {
 
+    const commentLabel =
+      `${commentCount} comment${commentCount === 1 ? "" : "s"}`;
+
+
+    const ratingLabel =
+      `${ratingCount} rating${ratingCount === 1 ? "" : "s"}`;
+
+
     reviewsResultCount.textContent =
-
-      total ===
-        1
-
-        ?
-
-        "1 traveler comment"
-
-        :
-
-        `${total} traveler comments`;
-
-  }
-
-
-  if (
-    reviewsSidebarBadge
-  ) {
-
-    reviewsSidebarBadge.textContent =
-      total >
-        99
-
-        ?
-
-        "99+"
-
-        :
-
-        String(
-          total
-        );
-
-
-    reviewsSidebarBadge.hidden =
-      total ===
-      0;
+      `${commentLabel} • ${ratingLabel}`;
 
   }
 
 
   /* =====================================================
-     EMPTY STATE
+     EMPTY
   ===================================================== */
 
   if (
-    total ===
+    activities.length ===
     0
   ) {
 
@@ -6206,13 +6505,13 @@ function renderReviews() {
 
 
         <h4>
-          No traveler comments yet
+          No traveler activity yet
         </h4>
 
 
         <p>
-          Comments submitted by travelers will
-          automatically appear here.
+          Comments and ratings from travelers
+          will automatically appear here.
         </p>
 
       </div>
@@ -6228,34 +6527,24 @@ function renderReviews() {
 
 
   /* =====================================================
-     BUILD COMMENT CARDS
+     BUILD CARDS
   ===================================================== */
 
   reviewsList.innerHTML =
 
-    comments
+    activities
       .map(
-        comment => {
+        activity => {
 
           const userName =
-            comment.userName
+            activity.userName
             ||
             "Traveler";
 
 
           const destinationName =
             getAdminDestinationName(
-              comment.destinationId
-            );
-
-
-          const rating =
-            getAdminUserDestinationRating(
-
-              comment.userId,
-
-              comment.destinationId
-
+              activity.destinationId
             );
 
 
@@ -6266,7 +6555,7 @@ function renderReviews() {
 
 
           const profilePhoto =
-            comment.userPhoto
+            activity.userPhoto
             ||
             "";
 
@@ -6294,63 +6583,169 @@ function renderReviews() {
               );
 
 
-          const ratingHTML =
+          /* =================================================
+             COMMENT CARD
+          ================================================= */
 
-            rating >
-              0
+          if (
+            activity.type ===
+            "comment"
+          ) {
 
-              ?
+            const rating =
+              getAdminUserDestinationRating(
 
-              `
+                activity.userId,
 
-                <div
-                  class="admin-review-stars"
-                  aria-label="${rating} out of 5 stars"
-                >
+                activity.destinationId
 
-                  <span>
-                    ${"★".repeat(rating)}
-                  </span>
+              );
 
-                  <span class="empty">
-                    ${"★".repeat(
-                Math.max(
-                  0,
-                  5 -
-                  rating
-                )
-              )}
-                  </span>
 
-                  <small>
-                    ${rating}.0
-                  </small>
+            const ratingHTML =
+
+              rating >
+                0
+
+                ?
+
+                `
+
+                  <div
+                    class="admin-review-stars"
+                    aria-label="${rating} out of 5 stars"
+                  >
+
+                    <span>
+                      ${"★".repeat(rating)}
+                    </span>
+
+                    <span class="empty">
+                      ${"★".repeat(
+                  Math.max(
+                    0,
+                    5 -
+                    rating
+                  )
+                )}
+                    </span>
+
+                    <small>
+                      ${rating}.0
+                    </small>
+
+                  </div>
+
+                `
+
+                :
+
+                `
+
+                  <div class="admin-review-no-rating">
+
+                    <i data-lucide="star"></i>
+
+                    No rating submitted
+
+                  </div>
+
+                `;
+
+
+            return `
+
+              <article
+                class="admin-review-card"
+                data-engagement-id="${escapeAdminHTML(activity.id)}"
+                data-destination-id="${escapeAdminHTML(activity.destinationId)}"
+              >
+
+                <div class="admin-review-avatar">
+
+                  ${avatarHTML}
 
                 </div>
 
-              `
 
-              :
+                <div class="admin-review-body">
 
-              `
+                  <div class="admin-review-heading">
 
-                <div class="admin-review-no-rating">
+                    <div>
 
-                  <i data-lucide="star"></i>
+                      <div class="admin-review-user">
 
-                  No rating submitted
+                        ${escapeAdminHTML(userName)}
+
+                      </div>
+
+
+                      <div class="admin-review-destination">
+
+                        <i data-lucide="message-circle"></i>
+
+                        Commented on
+
+                        <strong>
+                          ${escapeAdminHTML(destinationName)}
+                        </strong>
+
+                      </div>
+
+                    </div>
+
+
+                    <time class="admin-review-time">
+
+                      ${formatAdminNotificationTime(
+              activity.timestamp
+            )
+              }
+
+                    </time>
+
+                  </div>
+
+
+                  ${ratingHTML}
+
+
+                  <p class="admin-review-text">
+
+                    ${escapeAdminHTML(activity.text)}
+
+                  </p>
 
                 </div>
 
-              `;
+              </article>
+
+            `;
+
+          }
+
+
+          /* =================================================
+             RATING-ONLY CARD
+          ================================================= */
+
+          const rating =
+            Math.max(
+              1,
+              Math.min(
+                5,
+                activity.rating
+              )
+            );
 
 
           return `
 
             <article
-              class="admin-review-card"
-              data-comment-id="${escapeAdminHTML(comment.id)}"
-              data-destination-id="${escapeAdminHTML(comment.destinationId)}"
+              class="admin-review-card admin-rating-card"
+              data-engagement-id="${escapeAdminHTML(activity.id)}"
+              data-destination-id="${escapeAdminHTML(activity.destinationId)}"
             >
 
               <div class="admin-review-avatar">
@@ -6375,9 +6770,9 @@ function renderReviews() {
 
                     <div class="admin-review-destination">
 
-                      <i data-lucide="map-pin"></i>
+                      <i data-lucide="star"></i>
 
-                      Commented on
+                      Rated
 
                       <strong>
                         ${escapeAdminHTML(destinationName)}
@@ -6390,27 +6785,46 @@ function renderReviews() {
 
                   <time class="admin-review-time">
 
-                    ${escapeAdminHTML(
-            formatAdminCommentTime(
-              comment
-            )
-          )}
+                    ${formatAdminNotificationTime(
+            activity.timestamp
+          )
+            }
 
                   </time>
 
                 </div>
 
 
-                ${ratingHTML}
+                <div
+                  class="admin-review-stars"
+                  aria-label="${rating} out of 5 stars"
+                >
+
+                  <span>
+                    ${"★".repeat(rating)}
+                  </span>
+
+                  <span class="empty">
+                    ${"★".repeat(
+              Math.max(
+                0,
+                5 -
+                rating
+              )
+            )}
+                  </span>
+
+                  <small>
+                    ${rating}.0
+                  </small>
+
+                </div>
 
 
-                <p class="admin-review-text">
+                <p class="admin-rating-message">
 
-                  ${escapeAdminHTML(
-            comment.text
-            ||
-            ""
-          )}
+                  Traveler submitted a
+                  ${rating}-star rating.
 
                 </p>
 
@@ -6436,10 +6850,6 @@ function renderReviews() {
 ========================================================= */
 
 function startRealtimeReviewsListener() {
-
-  /* =====================================================
-     DON'T START DUPLICATE LISTENERS
-  ===================================================== */
 
   if (
     adminCommentsUnsubscribe
@@ -6584,7 +6994,8 @@ function startRealtimeReviewsListener() {
         */
 
         renderReviews();
-
+        renderRecentDest();
+        renderDestList();
         refreshRealtimeAdminNotifications();
 
       },
