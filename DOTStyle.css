@@ -2044,8 +2044,7 @@ p {
   border-radius: 16px;
 
   box-shadow:
-    0 2px 6px
-    rgba(32, 70, 90, 0.05);
+    0 2px 6px rgba(32, 70, 90, 0.05);
 }
 
 
@@ -2308,3 +2307,200 @@ p {
 
 }
 
+/* =========================================================
+   REALTIME DOT NOTIFICATIONS
+========================================================= */
+
+#notifPanelList {
+  max-height: 430px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  overscroll-behavior: contain;
+}
+
+
+/* =========================================================
+   NOTIFICATION ITEM
+========================================================= */
+
+.notif-panel-item {
+  width: 100%;
+
+  padding: 13px 14px;
+
+  border: 0;
+  border-bottom: 1px solid #eef4f6;
+
+  display: flex;
+  align-items: flex-start;
+
+  gap: 10px;
+
+  background: #fff;
+
+  text-align: left;
+
+  cursor: pointer;
+}
+
+
+.notif-panel-item:last-child {
+  border-bottom: 0;
+}
+
+
+.notif-panel-item:hover {
+  background: #f8fcfd;
+}
+
+
+.notif-panel-item.unread {
+  background: #f0fbfc;
+}
+
+
+/* =========================================================
+   ICON
+========================================================= */
+
+.admin-notification-icon {
+  width: 35px;
+  height: 35px;
+
+  flex: 0 0 35px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 11px;
+
+  background: var(--teal-soft);
+  color: var(--teal);
+}
+
+
+.admin-notification-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+
+.admin-notification-icon.comment {
+  background: #eaf2ff;
+  color: #3266b0;
+}
+
+
+.admin-notification-icon.rating {
+  background: #fff4d9;
+  color: #a67200;
+}
+
+
+.admin-notification-icon.save {
+  background: #fde8e8;
+  color: #d33838;
+}
+
+
+.admin-notification-icon.destination {
+  background: var(--teal-soft);
+  color: var(--teal-dark);
+}
+
+
+/* =========================================================
+   COPY
+========================================================= */
+
+.admin-notification-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+
+.admin-notification-copy p {
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+
+.admin-notification-copy p b {
+  font-weight: 900;
+}
+
+
+.admin-notification-copy .time {
+  margin-top: 4px;
+
+  color: var(--muted);
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   UNREAD DOT
+========================================================= */
+
+.admin-notification-unread-dot {
+  width: 7px;
+  height: 7px;
+
+  flex: 0 0 7px;
+
+  margin-top: 6px;
+
+  border-radius: 50%;
+
+  background: var(--teal);
+}
+
+
+/* =========================================================
+   EMPTY
+========================================================= */
+
+.admin-notification-empty {
+  padding: 34px 20px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  text-align: center;
+
+  color: var(--muted);
+}
+
+
+.admin-notification-empty svg {
+  width: 25px;
+  height: 25px;
+
+  margin-bottom: 8px;
+
+  color: var(--teal);
+}
+
+
+.admin-notification-empty strong {
+  color: var(--text);
+
+  font-size: 12px;
+  font-weight: 900;
+}
+
+
+.admin-notification-empty span {
+  margin-top: 3px;
+
+  font-size: 10.5px;
+}

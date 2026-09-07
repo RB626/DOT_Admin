@@ -31,37 +31,6 @@ const supabase =
     SUPABASE_ANON_KEY
   );
 
-/* =========================================================
-   OTHER ADMIN DATA
-========================================================= */
-
-const NOTIFICATIONS = [
-
-  {
-    text: 'Your listing <b>Sohoton Caves &amp; Natural Bridge</b> just crossed 300 saves.',
-    time: "1h ago",
-    unread: true
-  },
-
-  {
-    text: 'New comment on <b>Marabut Marine Park</b> from a traveler.',
-    time: "3h ago",
-    unread: true
-  },
-
-  {
-    text: '<b>Pinipisakan Falls</b> is still a draft — add a main photo to publish.',
-    time: "1d ago",
-    unread: true
-  },
-
-  {
-    text: '<b>Calbiga Cave Complex</b> was archived due to seasonal trail closure.',
-    time: "3d ago",
-    unread: true
-  }
-
-];
 
 
 const ACTIVITY = [
@@ -94,6 +63,8 @@ let editingId = null;
 let adminComments = [];
 let adminRatings = [];
 let adminSavedPlaces = [];
+let adminRealtimeNotifications = [];
+const ADMIN_NOTIFICATION_READ_KEY = "travelBuddyDotReadNotifications";
 let adminSavedPlacesUnsubscribe = null;
 let adminCommentsUnsubscribe = null;
 let adminRatingsUnsubscribe = null;
@@ -161,22 +132,13 @@ function startRealtimeAdminSavedPlacesListener() {
           adminSavedPlaces
         );
 
-
-        /* =====================================
-           UPDATE DASHBOARD TOTAL
-        ===================================== */
-
         renderStats();
-
-
-        /* =====================================
-           UPDATE SAVE COUNTS ON DESTINATION
-           CARDS TOO
-        ===================================== */
 
         renderRecentDest();
 
         renderDestList();
+
+        refreshRealtimeAdminNotifications();
 
       },
 
@@ -734,6 +696,8 @@ function startRealtimeDestinationListener() {
 
       renderDestList();
 
+      refreshRealtimeAdminNotifications();
+
 
       console.log(
         "Realtime destinations:",
@@ -1011,45 +975,1103 @@ document
 
 
 /* =========================================================
-   NOTIFICATIONS
+   REALTIME DOT ADMIN NOTIFICATIONS
+========================================================= */
+
+
+/* =========================================================
+   TIMESTAMP -> MILLISECONDS
+========================================================= */
+
+function adminTimestampToMillis(
+  value
+) {
+
+  if (
+    !value
+  ) {
+
+    return 0;
+
+  }
+
+
+  if (
+    typeof value.toMillis ===
+    "function"
+  ) {
+
+    return value.toMillis();
+
+  }
+
+
+  if (
+    typeof value.toDate ===
+    "function"
+  ) {
+
+    return value
+      .toDate()
+      .getTime();
+
+  }
+
+
+  const numberValue =
+    Number(
+      value
+    );
+
+
+  return Number.isFinite(
+    numberValue
+  )
+    ?
+    numberValue
+    :
+    0;
+
+}
+
+
+/* =========================================================
+   FRIENDLY NOTIFICATION TIME
+========================================================= */
+
+function formatAdminNotificationTime(
+  timestamp
+) {
+
+  const time =
+    Number(
+      timestamp
+    );
+
+
+  if (
+    !time
+  ) {
+
+    return "Recently";
+
+  }
+
+
+  const difference =
+    Math.max(
+      0,
+      Date.now() -
+      time
+    );
+
+
+  const seconds =
+    Math.floor(
+      difference /
+      1000
+    );
+
+
+  if (
+    seconds <
+    60
+  ) {
+
+    return "Just now";
+
+  }
+
+
+  const minutes =
+    Math.floor(
+      seconds /
+      60
+    );
+
+
+  if (
+    minutes <
+    60
+  ) {
+
+    return `${minutes}m ago`;
+
+  }
+
+
+  const hours =
+    Math.floor(
+      minutes /
+      60
+    );
+
+
+  if (
+    hours <
+    24
+  ) {
+
+    return `${hours}h ago`;
+
+  }
+
+
+  const days =
+    Math.floor(
+      hours /
+      24
+    );
+
+
+  if (
+    days <
+    7
+  ) {
+
+    return `${days}d ago`;
+
+  }
+
+
+  return new Date(
+    time
+  )
+    .toLocaleDateString(
+      "en-US",
+      {
+        month:
+          "short",
+
+        day:
+          "numeric",
+
+        year:
+          "numeric"
+      }
+    );
+
+}
+
+
+/* =========================================================
+   READ NOTIFICATION STORAGE
+========================================================= */
+
+function getAdminNotificationReadKey() {
+
+  const userId =
+    auth.currentUser?.uid
+    ||
+    "unknown";
+
+
+  return `${ADMIN_NOTIFICATION_READ_KEY}_${userId}`;
+
+}
+
+
+function getAdminReadNotifications() {
+
+  try {
+
+    const stored =
+      JSON.parse(
+
+        localStorage.getItem(
+          getAdminNotificationReadKey()
+        )
+
+        ||
+        "[]"
+
+      );
+
+
+    return new Set(
+      Array.isArray(
+        stored
+      )
+        ?
+        stored
+        :
+        []
+    );
+
+
+  } catch (
+  error
+  ) {
+
+    console.error(
+      "ADMIN NOTIFICATION READ ERROR:",
+      error
+    );
+
+
+    return new Set();
+
+  }
+
+}
+
+
+function saveAdminReadNotifications(
+  readSet
+) {
+
+  localStorage.setItem(
+
+    getAdminNotificationReadKey(),
+
+    JSON.stringify(
+      Array.from(
+        readSet
+      )
+    )
+
+  );
+
+}
+
+
+/* =========================================================
+   SAVE MILESTONE
+
+   1 save
+   5 saves
+   10, 20, 30, 40, 50...
+   100, 150, 200...
+   1000, 1500...
+========================================================= */
+
+function getSaveMilestone(
+  count
+) {
+
+  const total =
+    Number(
+      count
+    )
+    ||
+    0;
+
+
+  if (
+    total <=
+    0
+  ) {
+
+    return 0;
+
+  }
+
+
+  if (
+    total <
+    5
+  ) {
+
+    return 1;
+
+  }
+
+
+  if (
+    total <
+    10
+  ) {
+
+    return 5;
+
+  }
+
+
+  if (
+    total <
+    100
+  ) {
+
+    return Math.floor(
+      total /
+      10
+    ) *
+      10;
+
+  }
+
+
+  if (
+    total <
+    1000
+  ) {
+
+    return Math.floor(
+      total /
+      50
+    ) *
+      50;
+
+  }
+
+
+  return Math.floor(
+    total /
+    500
+  ) *
+    500;
+
+}
+
+
+/* =========================================================
+   BUILD SAVE NOTIFICATIONS
+========================================================= */
+
+function buildSaveMilestoneNotifications() {
+
+  const notifications =
+    [];
+
+
+  destinations.forEach(
+    destination => {
+
+      const matchingSaves =
+        adminSavedPlaces.filter(
+          savedPlace => {
+
+            const destinationId =
+              savedPlace.destinationId
+              ||
+              savedPlace.id;
+
+
+            return destinationId ===
+              destination.id;
+
+          }
+        );
+
+
+      const saveCount =
+        matchingSaves.length;
+
+
+      const milestone =
+        getSaveMilestone(
+          saveCount
+        );
+
+
+      if (
+        !milestone
+      ) {
+
+        return;
+
+      }
+
+
+      /*
+         Find the most recent save so the
+         milestone has a useful timestamp.
+      */
+
+      let latestSaveTime =
+        0;
+
+
+      matchingSaves.forEach(
+        savedPlace => {
+
+          const time =
+            adminTimestampToMillis(
+              savedPlace.savedAt
+            );
+
+
+          if (
+            time >
+            latestSaveTime
+          ) {
+
+            latestSaveTime =
+              time;
+
+          }
+
+        }
+      );
+
+
+      const safeName =
+        escapeAdminHTML(
+          destination.name
+          ||
+          "Destination"
+        );
+
+
+      let text;
+
+
+      if (
+        milestone ===
+        1
+      ) {
+
+        text =
+          `<b>${safeName}</b> received its first save.`;
+
+      } else {
+
+        text =
+          `<b>${safeName}</b> reached ${milestone.toLocaleString()} saves.`;
+
+      }
+
+
+      notifications.push({
+
+        id:
+          `save_${destination.id}_${milestone}`,
+
+        type:
+          "save",
+
+        destinationId:
+          destination.id,
+
+        text:
+          text,
+
+        timestamp:
+          latestSaveTime,
+
+        targetView:
+          "destinations"
+
+      });
+
+    }
+  );
+
+
+  return notifications;
+
+}
+
+
+/* =========================================================
+   BUILD ALL REALTIME NOTIFICATIONS
+========================================================= */
+
+function buildRealtimeAdminNotifications() {
+
+  const notifications =
+    [];
+
+
+  /*
+     Don't fill the panel with extremely old activity.
+     Normal comments / ratings / uploads are shown
+     for the latest 30 days.
+  */
+
+  const recentLimit =
+    Date.now() -
+    (
+      30 *
+      24 *
+      60 *
+      60 *
+      1000
+    );
+
+
+  /* =====================================================
+     NEW / UPLOADED DESTINATIONS
+  ===================================================== */
+
+  destinations.forEach(
+    destination => {
+
+      const timestamp =
+        adminTimestampToMillis(
+          destination.createdAt
+        );
+
+
+      if (
+        !timestamp
+        ||
+        timestamp <
+        recentLimit
+      ) {
+
+        return;
+
+      }
+
+
+      const safeName =
+        escapeAdminHTML(
+          destination.name
+          ||
+          "Destination"
+        );
+
+
+      const status =
+        destination.status ===
+          "Published"
+
+          ?
+
+          "published"
+
+          :
+
+          "uploaded";
+
+
+      notifications.push({
+
+        id:
+          `destination_${destination.id}`,
+
+        type:
+          "destination",
+
+        destinationId:
+          destination.id,
+
+        text:
+          `You ${status} <b>${safeName}</b>.`,
+
+        timestamp:
+          timestamp,
+
+        targetView:
+          "destinations"
+
+      });
+
+    }
+  );
+
+
+  /* =====================================================
+     COMMENTS
+  ===================================================== */
+
+  adminComments.forEach(
+    comment => {
+
+      const timestamp =
+        adminTimestampToMillis(
+          comment.createdAt
+        )
+        ||
+        Number(
+          comment.clientCreatedAt
+        )
+        ||
+        0;
+
+
+      if (
+        !timestamp
+        ||
+        timestamp <
+        recentLimit
+      ) {
+
+        return;
+
+      }
+
+
+      const destinationName =
+        escapeAdminHTML(
+          getAdminDestinationName(
+            comment.destinationId
+          )
+        );
+
+
+      const travelerName =
+        escapeAdminHTML(
+          comment.userName
+          ||
+          "A traveler"
+        );
+
+
+      notifications.push({
+
+        id:
+          `comment_${comment.id}`,
+
+        type:
+          "comment",
+
+        destinationId:
+          comment.destinationId,
+
+        text:
+          `<b>${travelerName}</b> commented on <b>${destinationName}</b>.`,
+
+        timestamp:
+          timestamp,
+
+        targetView:
+          "reviews"
+
+      });
+
+    }
+  );
+
+
+  /* =====================================================
+     RATINGS
+  ===================================================== */
+
+  adminRatings.forEach(
+    rating => {
+
+      const timestamp =
+        adminTimestampToMillis(
+          rating.updatedAt
+        );
+
+
+      if (
+        !timestamp
+        ||
+        timestamp <
+        recentLimit
+      ) {
+
+        return;
+
+      }
+
+
+      const destinationName =
+        escapeAdminHTML(
+          getAdminDestinationName(
+            rating.destinationId
+          )
+        );
+
+
+      const travelerName =
+        escapeAdminHTML(
+          rating.userName
+          ||
+          "A traveler"
+        );
+
+
+      const ratingValue =
+        Math.max(
+          1,
+          Math.min(
+            5,
+            Number(
+              rating.rating
+            )
+            ||
+            0
+          )
+        );
+
+
+      /*
+         Timestamp is included in the ID.
+
+         If the same traveler changes their rating
+         later, DOT receives a new unread notification.
+      */
+
+      notifications.push({
+
+        id:
+          `rating_${rating.id}_${timestamp}`,
+
+        type:
+          "rating",
+
+        destinationId:
+          rating.destinationId,
+
+        text:
+          `<b>${travelerName}</b> rated <b>${destinationName}</b> ${ratingValue} star${ratingValue === 1 ? "" : "s"}.`,
+
+        timestamp:
+          timestamp,
+
+        targetView:
+          "reviews"
+
+      });
+
+    }
+  );
+
+
+  /* =====================================================
+     SAVE MILESTONES
+  ===================================================== */
+
+  notifications.push(
+    ...buildSaveMilestoneNotifications()
+  );
+
+
+  /* =====================================================
+     NEWEST FIRST
+  ===================================================== */
+
+  return notifications
+    .filter(
+      notification =>
+        notification.timestamp >
+        0
+    )
+    .sort(
+      (
+        first,
+        second
+      ) =>
+        second.timestamp -
+        first.timestamp
+    )
+    .slice(
+      0,
+      40
+    );
+
+}
+
+
+/* =========================================================
+   REFRESH REALTIME NOTIFICATIONS
+========================================================= */
+
+function refreshRealtimeAdminNotifications() {
+
+  const readNotifications =
+    getAdminReadNotifications();
+
+
+  adminRealtimeNotifications =
+    buildRealtimeAdminNotifications()
+      .map(
+        notification => ({
+
+          ...notification,
+
+          unread:
+            !readNotifications.has(
+              notification.id
+            )
+
+        })
+      );
+
+
+  renderNotifPanel();
+
+}
+
+
+/* =========================================================
+   NOTIFICATION ICON
+========================================================= */
+
+function getAdminNotificationIcon(
+  type
+) {
+
+  switch (
+  type
+  ) {
+
+    case "destination":
+      return "map-pin-plus";
+
+    case "comment":
+      return "message-circle";
+
+    case "rating":
+      return "star";
+
+    case "save":
+      return "heart";
+
+    default:
+      return "bell";
+
+  }
+
+}
+
+
+/* =========================================================
+   RENDER PANEL
 ========================================================= */
 
 function renderNotifPanel() {
 
-  document.getElementById(
-    "notifPanelList"
-  ).innerHTML =
+  const panelList =
+    document.getElementById(
+      "notifPanelList"
+    );
 
-    NOTIFICATIONS
+
+  const countBadge =
+    document.getElementById(
+      "adminNotifCount"
+    );
+
+
+  if (
+    !panelList
+  ) {
+
+    return;
+
+  }
+
+
+  const unreadCount =
+    adminRealtimeNotifications.filter(
+      notification =>
+        notification.unread
+    ).length;
+
+
+  if (
+    countBadge
+  ) {
+
+    countBadge.textContent =
+      unreadCount >
+        99
+
+        ?
+
+        "99+"
+
+        :
+
+        String(
+          unreadCount
+        );
+
+
+    countBadge.style.display =
+      unreadCount >
+        0
+
+        ?
+
+        "grid"
+
+        :
+
+        "none";
+
+  }
+
+
+  /* =====================================================
+     EMPTY
+  ===================================================== */
+
+  if (
+    adminRealtimeNotifications.length ===
+    0
+  ) {
+
+    panelList.innerHTML = `
+
+      <div class="admin-notification-empty">
+
+        <i data-lucide="bell"></i>
+
+        <strong>
+          No notifications yet
+        </strong>
+
+        <span>
+          New activity will appear here automatically.
+        </span>
+
+      </div>
+
+    `;
+
+
+    refreshIcons();
+
+    return;
+
+  }
+
+
+  panelList.innerHTML =
+
+    adminRealtimeNotifications
       .map(
         notification => `
 
-                    <div class="notif-panel-item ${notification.unread ? "unread" : ""}">
+          <button
+            type="button"
+            class="
+              notif-panel-item
+              ${notification.unread ? "unread" : ""}
+            "
+            data-admin-notification-id="${escapeAdminHTML(notification.id)}"
+            data-admin-notification-target="${escapeAdminHTML(notification.targetView)}"
+            data-admin-notification-destination="${escapeAdminHTML(notification.destinationId || "")}"
+          >
 
-                        <span class="notif-dot ${notification.unread ? "" : "read"}"></span>
+            <span
+              class="
+                admin-notification-icon
+                ${notification.type}
+              "
+            >
 
-                        <div>
+              <i
+                data-lucide="${getAdminNotificationIcon(notification.type)}"
+              ></i>
 
-                            <p>
-                                ${notification.text}
-                            </p>
+            </span>
 
-                            <div class="time">
-                                ${notification.time}
-                            </div>
 
-                        </div>
+            <div class="admin-notification-copy">
 
-                    </div>
+              <p>
+                ${notification.text}
+              </p>
 
+
+              <div class="time">
+
+                ${formatAdminNotificationTime(
+          notification.timestamp
+        )}
+
+              </div>
+
+            </div>
+
+
+            ${notification.unread
+
+            ?
+
+            `
+                  <span
+                    class="admin-notification-unread-dot"
+                  ></span>
                 `
+
+            :
+
+            ""
+          }
+
+          </button>
+
+        `
       )
       .join(
         ""
       );
 
+
+  refreshIcons();
+
 }
 
+
+/* =========================================================
+   MARK ONE READ
+========================================================= */
+
+function markAdminNotificationRead(
+  notificationId
+) {
+
+  if (
+    !notificationId
+  ) {
+
+    return;
+
+  }
+
+
+  const readNotifications =
+    getAdminReadNotifications();
+
+
+  readNotifications.add(
+    notificationId
+  );
+
+
+  saveAdminReadNotifications(
+    readNotifications
+  );
+
+
+  refreshRealtimeAdminNotifications();
+
+}
+
+
+/* =========================================================
+   MARK ALL READ
+========================================================= */
+
+function markAllAdminNotificationsRead() {
+
+  const readNotifications =
+    getAdminReadNotifications();
+
+
+  adminRealtimeNotifications.forEach(
+    notification => {
+
+      readNotifications.add(
+        notification.id
+      );
+
+    }
+  );
+
+
+  saveAdminReadNotifications(
+    readNotifications
+  );
+
+
+  refreshRealtimeAdminNotifications();
+
+}
+
+
+/* =========================================================
+   BELL BUTTON
+========================================================= */
 
 document
   .getElementById(
@@ -1061,11 +2083,13 @@ document
 
       event.stopPropagation();
 
+
       document
         .getElementById(
           "notifPanel"
         )
-        .classList.toggle(
+        ?.classList
+        .toggle(
           "show"
         );
 
@@ -1073,38 +2097,147 @@ document
   );
 
 
+/* =========================================================
+   MARK ALL READ BUTTON
+========================================================= */
+
 document
   .getElementById(
     "markAllReadBtn"
   )
   ?.addEventListener(
     "click",
-    () => {
+    event => {
 
-      NOTIFICATIONS
-        .forEach(
-          item => {
-
-            item.unread =
-              false;
-
-          }
-        );
+      event.stopPropagation();
 
 
-      renderNotifPanel();
-
-
-      document
-        .querySelector(
-          ".topbar-notif-count"
-        )
-        .style.display =
-        "none";
+      markAllAdminNotificationsRead();
 
     }
   );
 
+
+/* =========================================================
+   CLICK A NOTIFICATION
+========================================================= */
+
+document
+  .getElementById(
+    "notifPanelList"
+  )
+  ?.addEventListener(
+    "click",
+    event => {
+
+      const notificationItem =
+        event.target.closest(
+          "[data-admin-notification-id]"
+        );
+
+
+      if (
+        !notificationItem
+      ) {
+
+        return;
+
+      }
+
+
+      const notificationId =
+        notificationItem.dataset
+          .adminNotificationId;
+
+
+      const targetView =
+        notificationItem.dataset
+          .adminNotificationTarget;
+
+
+      const destinationId =
+        notificationItem.dataset
+          .adminNotificationDestination;
+
+
+      markAdminNotificationRead(
+        notificationId
+      );
+
+
+      document
+        .getElementById(
+          "notifPanel"
+        )
+        ?.classList
+        .remove(
+          "show"
+        );
+
+
+      /* =========================================
+         COMMENT / RATING
+      ========================================= */
+
+      if (
+        targetView ===
+        "reviews"
+      ) {
+
+        switchView(
+          "reviews"
+        );
+
+
+        return;
+
+      }
+
+
+      /* =========================================
+         DESTINATION / SAVES
+      ========================================= */
+
+      switchView(
+        "destinations"
+      );
+
+
+      requestAnimationFrame(
+        () => {
+
+          const card =
+            Array
+              .from(
+                document.querySelectorAll(
+                  ".admin-dest-card"
+                )
+              )
+              .find(
+                destinationCard =>
+                  destinationCard.dataset.id ===
+                  destinationId
+              );
+
+
+          card?.scrollIntoView({
+            behavior:
+              "smooth",
+
+            block:
+              "center"
+          });
+
+        }
+      );
+
+    }
+  );
+
+
+/* =========================================================
+   CLICK OUTSIDE
+========================================================= */
 
 document.addEventListener(
   "click",
@@ -1124,7 +2257,8 @@ document.addEventListener(
         .getElementById(
           "notifPanel"
         )
-        .classList.remove(
+        ?.classList
+        .remove(
           "show"
         );
 
@@ -5060,6 +6194,8 @@ function startRealtimeReviewsListener() {
 
         renderReviews();
 
+        refreshRealtimeAdminNotifications();
+
       },
 
       error => {
@@ -5142,6 +6278,8 @@ function startRealtimeReviewsListener() {
         */
 
         renderReviews();
+
+        refreshRealtimeAdminNotifications();
 
       },
 
