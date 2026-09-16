@@ -1648,6 +1648,21 @@ function buildRealtimeAdminNotifications() {
   const notifications =
     [];
 
+  /* =====================================================
+ VALID DESTINATIONS
+
+ Engagement belonging to a deleted destination
+ must no longer create DOT notifications.
+===================================================== */
+
+  const activeDestinationIds =
+    new Set(
+      destinations.map(
+        destination =>
+          destination.id
+      )
+    );
+
 
   /*
      Don't fill the panel with extremely old activity.
@@ -1774,6 +1789,22 @@ function buildRealtimeAdminNotifications() {
   adminComments.forEach(
     comment => {
 
+      /* =========================================
+   IGNORE COMMENTS FOR DELETED DESTINATIONS
+========================================= */
+
+      if (
+        !comment.destinationId
+        ||
+        !activeDestinationIds.has(
+          comment.destinationId
+        )
+      ) {
+
+        return;
+
+      }
+
       const timestamp =
         adminTimestampToMillis(
           comment.createdAt
@@ -1846,6 +1877,22 @@ function buildRealtimeAdminNotifications() {
 
   adminRatings.forEach(
     rating => {
+
+      /* =========================================
+   IGNORE RATINGS FOR DELETED DESTINATIONS
+========================================= */
+
+      if (
+        !rating.destinationId
+        ||
+        !activeDestinationIds.has(
+          rating.destinationId
+        )
+      ) {
+
+        return;
+
+      }
 
       const timestamp =
         adminTimestampToMillis(
@@ -6429,13 +6476,52 @@ function renderReviews() {
 
   }
 
+  /* =====================================================
+   ONLY SHOW ENGAGEMENT FOR EXISTING DESTINATIONS
+
+   If DOT deletes a destination:
+   - its comments disappear
+   - its ratings disappear
+   - "Unknown destination" never appears
+===================================================== */
+
+  const activeDestinationIds =
+    new Set(
+      destinations.map(
+        destination =>
+          destination.id
+      )
+    );
+
+
+  const visibleAdminComments =
+    adminComments.filter(
+      comment =>
+        comment.destinationId
+        &&
+        activeDestinationIds.has(
+          comment.destinationId
+        )
+    );
+
+
+  const visibleAdminRatings =
+    adminRatings.filter(
+      rating =>
+        rating.destinationId
+        &&
+        activeDestinationIds.has(
+          rating.destinationId
+        )
+    );
+
 
   /* =====================================================
      BUILD COMMENT ACTIVITIES
   ===================================================== */
 
   const commentActivities =
-    adminComments.map(
+    visibleAdminComments.map(
       comment => ({
 
         id:
@@ -6482,7 +6568,7 @@ function renderReviews() {
   ===================================================== */
 
   const ratingActivities =
-    adminRatings.map(
+    visibleAdminRatings.map(
       rating => {
 
         /* =========================================
@@ -6490,7 +6576,7 @@ function renderReviews() {
         ========================================= */
 
         const matchingComment =
-          adminComments.find(
+          visibleAdminComments.find(
             comment =>
               comment.userId ===
               rating.userId
